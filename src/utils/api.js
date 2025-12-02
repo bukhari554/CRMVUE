@@ -10,22 +10,37 @@ import store from "@/store";
 export async function apiCall(endpoint, options = {}) {
   const token = store.getters.authToken;
   
+  // Check if body is FormData - if so, don't set Content-Type
+  const isFormData = options.body instanceof FormData;
+  
   const defaultHeaders = {
-    "Content-Type": "application/json",
     "Accept": "application/json",
   };
+  
+  // Only set Content-Type for non-FormData requests
+  if (!isFormData) {
+    defaultHeaders["Content-Type"] = "application/json";
+  }
 
   // Add Authorization header if token exists
   if (token) {
     defaultHeaders["Authorization"] = `Bearer ${token}`;
   }
 
+  // Merge headers
+  const mergedHeaders = {
+    ...defaultHeaders,
+    ...options.headers,
+  };
+
+  // For FormData, explicitly remove Content-Type to let browser set it with boundary
+  if (isFormData) {
+    delete mergedHeaders["Content-Type"];
+  }
+
   const config = {
     ...options,
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
+    headers: mergedHeaders,
   };
 
   const url = endpoint.startsWith("http") 
@@ -56,10 +71,13 @@ export async function apiGet(endpoint, options = {}) {
  * Make a POST request
  */
 export async function apiPost(endpoint, data, options = {}) {
+  // If data is FormData, don't stringify
+  const isFormData = data instanceof FormData;
+  
   return apiCall(endpoint, {
     ...options,
     method: "POST",
-    body: JSON.stringify(data),
+    body: isFormData ? data : JSON.stringify(data),
   });
 }
 

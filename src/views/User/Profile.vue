@@ -1,48 +1,24 @@
 <script setup>
 import { computed, ref, onBeforeMount, onBeforeUnmount } from "vue";
 import { useStore } from "vuex";
-import ArgonInput from "@/components/ArgonInput.vue";
 import ArgonButton from "@/components/ArgonButton.vue";
 import { apiPost } from "@/utils/api.js";
+import ClientDetailsForm from "./components/ClientDetailsForm.vue";
+import DocumentVerification from "./components/DocumentVerification.vue";
 
 const body = document.getElementsByTagName("body")[0];
 const store = useStore();
 
 const currentUser = computed(() => store.getters.currentUser || {});
 
-const formatValue = (value) => {
-  if (value === null || value === undefined || value === "") return "-";
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  return value;
-};
+// Telephone as "(+92) 3061705726"
+const formattedTelephone = computed(() => {
+  const u = currentUser.value;
+  if (!u.telephone && !u.country_code) return "—";
 
-const profileRows = computed(() => {
-  const user = currentUser.value;
-  const rows = [
-    { label: "ID", value: user.id },
-    { label: "Name", value: user.name },
-    { label: "Account Type", value: user.account_type },
-    { label: "Company Name", value: user.company_name },
-    { label: "Title", value: user.title },
-    { label: "First Name", value: user.first_name },
-    { label: "Last Name", value: user.last_name },
-    { label: "Email", value: user.email },
-    { label: "Email Verified At", value: user.email_verified_at ? new Date(user.email_verified_at).toLocaleString() : null },
-    { label: "Currency", value: user.currency },
-    { label: "Country", value: user.country },
-    { label: "Country Code", value: user.country_code },
-    { label: "Telephone", value: user.telephone },
-    { label: "Nationality", value: user.nationality },
-    { label: "Address", value: user.address },
-    { label: "Source of Funds", value: user.source_of_funds },
-    { label: "Declared Bankruptcy", value: user.declared_bankruptcy },
-    { label: "USA Resident", value: user.is_usa_resident },
-    { label: "Politically Exposed (PEP)", value: user.is_pep },
-    { label: "Created At", value: user.created_at ? new Date(user.created_at).toLocaleString() : null },
-    { label: "Updated At", value: user.updated_at ? new Date(user.updated_at).toLocaleString() : null },
-  ];
-
-  return rows.filter((row) => row.value !== undefined);
+  const code = u.country_code ? `(${u.country_code})` : "";
+  const phone = u.telephone || "";
+  return `${code} ${phone}`.trim();
 });
 
 const passwordForm = ref({
@@ -54,17 +30,29 @@ const passwordMessage = ref("");
 const passwordType = ref("");
 const passwordLoading = ref(false);
 
+// eye toggles
+const showCurrentPassword = ref(false);
+const showNewPassword = ref(false);
+const showConfirmPassword = ref(false);
+
 const handleChangePassword = async () => {
   passwordMessage.value = "";
   passwordType.value = "";
 
-  if (!passwordForm.value.current_password || !passwordForm.value.new_password || !passwordForm.value.new_password_confirmation) {
+  if (
+    !passwordForm.value.current_password ||
+    !passwordForm.value.new_password ||
+    !passwordForm.value.new_password_confirmation
+  ) {
     passwordMessage.value = "All password fields are required.";
     passwordType.value = "error";
     return;
   }
 
-  if (passwordForm.value.new_password !== passwordForm.value.new_password_confirmation) {
+  if (
+    passwordForm.value.new_password !==
+    passwordForm.value.new_password_confirmation
+  ) {
     passwordMessage.value = "New password and confirmation must match.";
     passwordType.value = "error";
     return;
@@ -75,7 +63,8 @@ const handleChangePassword = async () => {
     const response = await apiPost("/client/change-password", {
       current_password: passwordForm.value.current_password,
       new_password: passwordForm.value.new_password,
-      new_password_confirmation: passwordForm.value.new_password_confirmation,
+      new_password_confirmation:
+        passwordForm.value.new_password_confirmation,
     });
 
     const data = await response.json().catch(() => null);
@@ -91,12 +80,15 @@ const handleChangePassword = async () => {
     } else {
       passwordMessage.value =
         data?.message ||
-        (response.status === 422 ? "Validation failed. Please check your input." : "Unable to change password.");
+        (response.status === 422
+          ? "Validation failed. Please check your input."
+          : "Unable to change password.");
       passwordType.value = "error";
     }
   } catch (error) {
     console.error("Password change error:", error);
-    passwordMessage.value = "Unable to change password. Please try again.";
+    passwordMessage.value =
+      "Unable to change password. Please try again.";
     passwordType.value = "error";
   } finally {
     passwordLoading.value = false;
@@ -116,65 +108,146 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="container-fluid py-4">
-    <div class="row">
-      <div class="col-lg-8">
-        <div class="card mb-4">
-          <div class="card-header pb-0">
-            <h6 class="mb-0">Profile Details</h6>
-          </div>
-          <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-sm align-items-center mb-0">
-                <tbody>
-                  <tr v-for="row in profileRows" :key="row.label">
-                    <th class="text-uppercase text-xs text-secondary">{{ row.label }}</th>
-                    <td class="text-sm">{{ formatValue(row.value) }}</td>
-                  </tr>
-                </tbody>
-              </table>
+    <!-- FIRST ROW -->
+    <div class="row equal-row mb-4">
+      <!-- PROFILE CARD -->
+      <div class="col-lg-4 d-flex mb-3 mb-lg-0">
+        <div class="card flex-fill">
+          <div class="card-body text-center">
+            <!-- user icon -->
+            <div
+              class="avatar avatar-lg bg-gradient-primary rounded-circle d-flex align-items-center justify-content-center mb-3 mx-auto"
+            >
+              <i class="ni ni-single-02 text-white"></i>
+            </div>
+
+            <!-- name -->
+            <h5 class="mb-1">
+              {{ currentUser.name || "—" }}
+            </h5>
+
+            <!-- account type -->
+            <div class="text-muted mb-3">
+              Account Type: {{ currentUser.account_type || "—" }}
+            </div>
+
+            <hr class="my-3" />
+
+            <!-- email -->
+            <div class="mb-2 text-start">
+              <strong>Email</strong>
+              <div>{{ currentUser.email || "—" }}</div>
+            </div>
+
+            <!-- telephone -->
+            <div class="mb-2 text-start">
+              <strong>Telephone</strong>
+              <div>{{ formattedTelephone }}</div>
+            </div>
+
+            <!-- country -->
+            <div class="mt-2 text-start">
+              <strong>Country</strong>
+              <div>{{ currentUser.country || "—" }}</div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="card">
+      <!-- CHANGE PASSWORD CARD -->
+      <div class="col-lg-8 d-flex">
+        <div class="card flex-fill">
           <div class="card-header pb-0">
             <h6 class="mb-0">Change Password</h6>
           </div>
           <div class="card-body">
+            <!-- info text above fields -->
+            <div class="alert alert-info mb-4 bg-secondary text-white">
+              Changing this password only affects your Members Area login.
+              Trading account passwords stay the same. To update those, visit
+              the Trading Accounts section.
+            </div>
+
+            <!-- result alert -->
             <div
               v-if="passwordMessage"
-              :class="['alert', passwordType === 'success' ? 'alert-success' : 'alert-danger']"
+              :class="[
+                'alert',
+                passwordType === 'success'
+                  ? 'alert-success'
+                  : 'alert-danger',
+              ]"
             >
               {{ passwordMessage }}
             </div>
+
             <form @submit.prevent="handleChangePassword">
               <div class="row">
+                <!-- current password -->
                 <div class="col-md-12 mb-3">
                   <label class="form-label">Current Password</label>
-                  <argon-input
-                    v-model="passwordForm.current_password"
-                    type="password"
-                    placeholder="Current Password"
-                  />
+                  <div class="position-relative">
+                    <input
+                      v-model="passwordForm.current_password"
+                      :type="showCurrentPassword ? 'text' : 'password'"
+                      class="form-control"
+                      placeholder="Current Password"
+                      style="padding-right: 2.5rem;"
+                    />
+                    <span
+                      class="position-absolute top-50 end-0 translate-middle-y me-3"
+                      style="cursor: pointer; font-size: 1.1rem; color: #000;"
+                      @click="showCurrentPassword = !showCurrentPassword"
+                    >
+                      👁
+                    </span>
+                  </div>
                 </div>
+
+                <!-- new password -->
                 <div class="col-md-6 mb-3">
                   <label class="form-label">New Password</label>
-                  <argon-input
-                    v-model="passwordForm.new_password"
-                    type="password"
-                    placeholder="New Password"
-                  />
+                  <div class="position-relative">
+                    <input
+                      v-model="passwordForm.new_password"
+                      :type="showNewPassword ? 'text' : 'password'"
+                      class="form-control"
+                      placeholder="New Password"
+                      style="padding-right: 2.5rem;"
+                    />
+                    <span
+                      class="position-absolute top-50 end-0 translate-middle-y me-3"
+                      style="cursor: pointer; font-size: 1.1rem; color: #000;"
+                      @click="showNewPassword = !showNewPassword"
+                    >
+                      👁
+                    </span>
+                  </div>
                 </div>
+
+                <!-- confirm password -->
                 <div class="col-md-6 mb-3">
                   <label class="form-label">Confirm New Password</label>
-                  <argon-input
-                    v-model="passwordForm.new_password_confirmation"
-                    type="password"
-                    placeholder="Confirm New Password"
-                  />
+                  <div class="position-relative">
+                    <input
+                      v-model="passwordForm.new_password_confirmation"
+                      :type="showConfirmPassword ? 'text' : 'password'"
+                      class="form-control"
+                      placeholder="Confirm New Password"
+                      style="padding-right: 2.5rem;"
+                    />
+                    <span
+                      class="position-absolute top-50 end-0 translate-middle-y me-3"
+                      style="cursor: pointer; font-size: 1.1rem; color: #000;"
+                      @click="showConfirmPassword = !showConfirmPassword"
+                    >
+                      👁
+                    </span>
+                  </div>
                 </div>
               </div>
-              <argon-button
+
+              <ArgonButton
                 class="mt-3"
                 color="success"
                 variant="gradient"
@@ -182,14 +255,44 @@ onBeforeUnmount(() => {
                 fullWidth
               >
                 {{ passwordLoading ? "Updating..." : "Update Password" }}
-              </argon-button>
+              </ArgonButton>
             </form>
           </div>
         </div>
       </div>
-      <div class="col-lg-4">
-        <profile-card />
+    </div>
+
+    <!-- SECOND ROW -->
+    <div class="row">
+      <div class="col-lg-8 mb-4">
+        <ClientDetailsForm class="card-min-height" />
+      </div>
+      <div class="col-lg-4 mb-4">
+        <DocumentVerification class="card-min-height" />
       </div>
     </div>
   </main>
 </template>
+
+<style scoped>
+/* make cards in first row same height */
+.equal-row > div {
+  display: flex;
+}
+
+.equal-row .card {
+  flex: 1 1 auto;
+}
+
+/* min height for second-row cards to visually match design */
+.card-min-height {
+  min-height: 320px;
+}
+
+/* extra vertical space between the two cards on mobile */
+@media (max-width: 768px) {
+  .container-fluid.py-4 .row > div {
+    margin-bottom: 1rem;
+  }
+}
+</style>

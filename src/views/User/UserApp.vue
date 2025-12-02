@@ -1,10 +1,9 @@
 <script setup>
 import { computed } from "vue";
 import { useStore } from "vuex";
-import Sidenav from "./examples/Sidenav";
+import Sidenav from "@/views/User/Sidenav";
 import Configurator from "@/examples/Configurator.vue";
-import Navbar from "@/examples/Navbars/Navbar.vue";
-import AppFooter from "@/examples/Footer.vue";
+
 
 const store = useStore();
 const isNavFixed = computed(() => store.state.isNavFixed);
@@ -12,8 +11,7 @@ const darkMode = computed(() => store.state.darkMode);
 const isAbsolute = computed(() => store.state.isAbsolute);
 const showSidenav = computed(() => store.state.showSidenav);
 const layout = computed(() => store.state.layout);
-const showNavbar = computed(() => store.state.showNavbar);
-const showFooter = computed(() => store.state.showFooter);
+
 const showConfig = computed(() => store.state.showConfig);
 const hideConfigButton = computed(() => store.state.hideConfigButton);
 const toggleConfigurator = () => store.commit("toggleConfigurator");
@@ -46,7 +44,7 @@ const navClasses = computed(() => {
 
     <router-view />
 
-    <app-footer v-show="showFooter" />
+    
 
     <configurator
       :toggle="toggleConfigurator"

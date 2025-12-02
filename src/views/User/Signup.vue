@@ -150,14 +150,23 @@ const preventSpaces = (event, fieldName) => {
 };
 
 onBeforeMount(() => {
+  console.log('🔍 User Signup - Checking auth status...');
+  
   // Initialize auth if not already done
   if (!store.state.isAuthenticated) {
-    store.commit("initializeAuth");
+    store.dispatch("initializeAuth");
   }
   
   // Redirect if already authenticated
-  if (store.getters.isAuthenticated) {
-    router.push("/dashboard-default");
+  if (store.getters.isLoggedIn) {
+    const userRole = store.getters.userRole;
+    console.log('✅ Already logged in as:', userRole);
+    
+    if (userRole === 'admin') {
+      router.push("/admin/dashboard");
+    } else {
+      router.push("/user/dashboard");
+    }
     return;
   }
   
@@ -178,6 +187,8 @@ onBeforeUnmount(() => {
 
 // Submit signup form function
 const submitsignup = async () => {
+  console.log('📝 User Signup - Starting signup process...');
+  
   // Clear previous messages
   message.value = "";
   messageType.value = "";
@@ -209,6 +220,7 @@ const submitsignup = async () => {
     if (!value) {
       message.value = `${label} is required`;
       messageType.value = "error";
+      console.log('❌ Validation failed:', label);
       return;
     }
   }
@@ -216,18 +228,21 @@ const submitsignup = async () => {
   if (formData.value.password !== formData.value.password_confirmation) {
     message.value = "Passwords do not match";
     messageType.value = "error";
+    console.log('❌ Password mismatch');
     return;
   }
 
   if (!formData.value.agree) {
     message.value = "Please agree to Terms and Conditions";
     messageType.value = "error";
+    console.log('❌ Terms not agreed');
     return;
   }
 
   if (formData.value.telephone && !validatePhoneNumber()) {
     message.value = telephoneError.value;
     messageType.value = "error";
+    console.log('❌ Phone validation failed');
     return;
   }
 
@@ -252,7 +267,7 @@ const submitsignup = async () => {
       payload.company_name = sanitize(formData.value.company_name);
     }
 
-    console.log("Sending payload:", payload); // Debug log
+    console.log('📡 Calling signup API...');
 
     const response = await fetch(`${APP_CONFIG.baseApiUrl}/client/signup`, {
       method: "POST",
@@ -263,22 +278,37 @@ const submitsignup = async () => {
       body: JSON.stringify(payload)
     });
 
-    console.log("Response status:", response.status); // Debug log
+    console.log('📥 API Response status:', response.status);
 
     const data = await response.json();
-    console.log("Response data:", data); // Debug log
+    console.log('📦 Response data:', { success: data?.success, hasToken: !!data?.data?.token });
 
     if (response.ok && data?.success) {
+      console.log('✅ Signup successful!');
+      
       // Extract token, user, and api_key from response structure
       const token = data?.data?.token;
       const user = data?.data?.user;
       const apiKey = data?.data?.api_key;
       
+      console.log('📦 Signup data:', {
+        hasToken: !!token,
+        hasUser: !!user,
+        hasApiKey: !!apiKey,
+        userId: user?.id
+      });
+      
       // Auto-login after successful signup
       if (token && user) {
+        // Dispatch login action to store
         store.dispatch("login", { token, user, apiKey });
+        
         message.value = "Sign up successful! Redirecting to dashboard...";
         messageType.value = "success";
+        
+        console.log('💾 Auth data saved to store and localStorage');
+        
+        // Clear form
         formData.value = {
           account_type: "",
           company_name: "",
@@ -293,29 +323,35 @@ const submitsignup = async () => {
           telephone: "",
           agree: false
         };
+        
+        // Redirect to user dashboard
         setTimeout(() => {
-          router.push("/dashboard-default");
-        }, 2000);
+          console.log('🔄 Redirecting to user dashboard...');
+          router.push("/user/dashboard");
+        }, 1500);
       } else {
+        console.error('❌ Signup successful but missing token or user data');
         message.value = "Sign up successful. Please login.";
-        messageType.value = "error";
+        messageType.value = "success";
         setTimeout(() => {
           router.push("/signin");
         }, 2000);
       }
     } else {
+      console.log('❌ Signup failed:', data?.message);
+      
       if (data?.errors) {
         const firstError = Object.values(data.errors)[0];
         message.value = Array.isArray(firstError) ? firstError[0] : firstError;
       } else {
         message.value = data.message || "Something went wrong";
       }
-      messageType.value = "ERROR";
+      messageType.value = "error";
     }
   } catch (error) {
-    console.error("Full error:", error); // Debug log
+    console.error('❌ Signup error:', error);
     message.value = "(ERROR 503 SERVICE UNAVAILABLE)";
-    messageType.value = "ERROR";
+    messageType.value = "error";
   } finally {
     loading.value = false;
   }
@@ -590,7 +626,6 @@ const submitsignup = async () => {
                   </label>  
                 </div>
 
-
                 <!-- Submit Button -->
                 <div class="text-center">
                   <argon-button fullWidth color="dark" variant="gradient" class="my-4 mb-2" :disabled="loading">
@@ -660,7 +695,7 @@ const submitsignup = async () => {
 .custom-checkbox {
   width: 23px;
   height: 23px;
-  accent-color: #0d6efd; /* checkbox color */
+  accent-color: #0d6efd;
 }
 
 .form-check-label a {
@@ -671,5 +706,4 @@ const submitsignup = async () => {
   color: #0d6efd !important;
   text-decoration: underline;
 }
-
 </style>

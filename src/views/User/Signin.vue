@@ -7,10 +7,11 @@ import ArgonInput from "@/components/ArgonInput.vue";
 import ArgonSwitch from "@/components/ArgonSwitch.vue";
 import ArgonButton from "@/components/ArgonButton.vue";
 import { APP_CONFIG } from "@/Data/appConfig.js";
-const body = document.getElementsByTagName("body")[0];
 
+const body = document.getElementsByTagName("body")[0];
 const store = useStore();
 const router = useRouter();
+
 const email = ref("");
 const password = ref("");
 const rememberMe = ref(false);
@@ -19,23 +20,34 @@ const message = ref("");
 const messageType = ref("");
 
 onBeforeMount(() => {
+  console.log('🔍 User Signin - Checking auth status...');
+  
   // Initialize auth if not already done
   if (!store.state.isAuthenticated) {
-    store.commit("initializeAuth");
+    store.dispatch("initializeAuth");
   }
   
   // Redirect if already authenticated
-  if (store.getters.isAuthenticated) {
-    router.push("/dashboard-default");
+  if (store.getters.isLoggedIn) {
+    const userRole = store.getters.userRole;
+    console.log('✅ Already logged in as:', userRole);
+    
+    if (userRole === 'admin') {
+      router.push("/admin/dashboard");
+    } else {
+      router.push("/user/dashboard");
+    }
     return;
   }
   
+  // Setup page for signin
   store.state.hideConfigButton = true;
   store.state.showNavbar = false;
   store.state.showSidenav = false;
   store.state.showFooter = false;
   body.classList.remove("bg-gray-100");
 });
+
 onBeforeUnmount(() => {
   store.state.hideConfigButton = false;
   store.state.showNavbar = true;
@@ -45,6 +57,8 @@ onBeforeUnmount(() => {
 });
 
 const handleLogin = async () => {
+  console.log('🔐 User Login - Starting login process...');
+  
   message.value = "";
   messageType.value = "";
 
@@ -52,12 +66,15 @@ const handleLogin = async () => {
   if (!trimmedEmail || !password.value) {
     message.value = "Email and password are required.";
     messageType.value = "error";
+    console.log('❌ Validation failed - empty fields');
     return;
   }
 
   loading.value = true;
 
   try {
+    console.log('📡 Calling USER login endpoint: /client/login');
+    
     const response = await fetch(`${APP_CONFIG.baseApiUrl}/client/login`, {
       method: "POST",
       headers: {
@@ -71,45 +88,83 @@ const handleLogin = async () => {
     });
 
     const data = await response.json().catch(() => null);
+    
+    console.log('📥 API Response:', {
+      status: response.status,
+      ok: response.ok,
+      success: data?.success
+    });
 
     if (response.ok && data?.success) {
-      console.log("Login successful:", data);
+      console.log('✅ User login successful!');
       
       // Extract token and user data from response structure
       const token = data?.data?.token;
-      const user = data?.data?.user;
+      const userData = data?.data?.user;  // From /client/login
+      const apiKey = data?.data?.api_key;
       
-      // Store authentication in Vuex
-      if (token && user) {
-        store.dispatch("login", { token, user });
-        message.value = "Login successful! Redirecting...";
-        messageType.value = "success";
-        setTimeout(() => {
-          router.push("/dashboard-default");
-        }, 1500);
-      } else {
-        message.value = "Login successful but no token or user data received.";
+      console.log('📦 User data extracted:', {
+        hasToken: !!token,
+        hasUser: !!userData,
+        hasApiKey: !!apiKey,
+        userId: userData?.id,
+        userEmail: userData?.email
+      });
+      
+      if (!token || !userData) {
+        console.error('❌ Missing token or user data');
+        message.value = "Login failed. Incomplete data received.";
         messageType.value = "error";
+        return;
       }
+      
+      // ⚠️ IMPORTANT: Since this is USER LOGIN endpoint,
+      // we ALWAYS set role as 'user' (hardcoded)
+      // This prevents users from accessing admin routes
+      const user = {
+        ...userData,
+        role: 'user'  // ✅ Hardcoded because /client/login only for users
+      };
+      
+      console.log('✅ User object created with user role:', {
+        id: user.id,
+        email: user.email,
+        role: user.role
+      });
+      
+      // Store authentication in Vuex (this will also save to localStorage)
+      store.dispatch("login", { token, user, apiKey });
+      
+      message.value = "Login successful! Redirecting...";
+      messageType.value = "success";
+      
+      console.log('💾 User auth saved to Vuex and localStorage');
+      
+      // Redirect to user dashboard
+      setTimeout(() => {
+        console.log('🔄 Redirecting to /user/dashboard...');
+        router.push("/user/dashboard");
+      }, 1000);
+      
     } else {
-      const errorText =
-        data?.message ||
-        (response.status === 401
-          ? "Invalid email or password."
-          : "Login failed. Please try again.");
+      console.log('❌ User login failed');
+      
+      const errorText = data?.message ||
+        (response.status === 401 ? "Invalid email or password." : "Login failed.");
+      
       message.value = errorText;
       messageType.value = "error";
     }
   } catch (error) {
-    console.error("Login error:", error);
-    message.value =
-      "Unable to reach the server. Please ensure the backend is running.";
+    console.error('❌ User login error:', error);
+    message.value = "Unable to reach the server. Please check your connection.";
     messageType.value = "error";
   } finally {
     loading.value = false;
   }
 };
 </script>
+
 <template>
   <div class="container top-0 position-sticky z-index-sticky">
     <div class="row">
