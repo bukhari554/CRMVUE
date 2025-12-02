@@ -5,6 +5,8 @@ import { useRoute, useRouter } from "vue-router";
 import Breadcrumbs from "@/examples/Breadcrumbs.vue";
 import { apiPost, apiGet, apiPatch } from "@/utils/api.js";
 
+/* eslint-disable no-unused-vars */
+
 const showUserMenu = ref(false);
 const store = useStore();
 const router = useRouter();
@@ -39,18 +41,17 @@ const userName = computed(() => {
   return "User";
 });
 
-const minimizeSidebar = () => store.commit("sidebarMinimize");
-const toggleConfigurator = () => store.commit("toggleConfigurator");
-
 const closeUserMenu = () => {
-  setTimeout(() => {
-    showUserMenu.value = false;
-  }, 100);
+  showUserMenu.value = false;
 };
 
 const handleLogout = async () => {
+  // First close the menu immediately
+  showUserMenu.value = false;
+  
   try {
-    await apiPost("/client/logout", {});
+    const response = await apiPost("/client/logout", {});
+    console.log("Logout API response:", response);
   } catch (error) {
     console.error("Logout error:", error);
   } finally {
@@ -200,6 +201,7 @@ onUnmounted(() => {
   document.removeEventListener("click", handleClickOutside);
 });
 </script>
+
 <template>
   <nav
     class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl"
@@ -221,15 +223,14 @@ onUnmounted(() => {
           <li
             class="nav-item dropdown d-flex align-items-center pe-2"
           >
-            <a
+              <a 
               href="#"
               class="p-0 nav-link text-white d-flex align-items-center"
               :class="[showUserMenu ? 'show' : '']"
               id="userMenuButton"
               data-bs-toggle="dropdown"
               aria-expanded="false"
-              @click="showUserMenu = !showUserMenu"
-              @blur="closeUserMenu"
+              @click.prevent="showUserMenu = !showUserMenu"
             >
               <i class="fa fa-user me-2"></i>
               <span class="d-sm-inline d-none">{{ userName }}</span>
@@ -244,7 +245,7 @@ onUnmounted(() => {
                 <router-link
                   to="/profile"
                   class="dropdown-item border-radius-md"
-                  @click="showUserMenu = false"
+                  @click="closeUserMenu"
                 >
                   <div class="d-flex align-items-center">
                     <i class="fa fa-user me-2"></i>
@@ -269,30 +270,11 @@ onUnmounted(() => {
               </li>
             </ul>
           </li>
-          <li class="nav-item d-xl-none ps-3 d-flex align-items-center">
-            <a
-              href="#"
-              @click="minimizeSidebar"
-              class="p-0 nav-link text-white"
-              id="iconNavbarSidenav"
-            >
-              <div class="sidenav-toggler-inner">
-                <i class="sidenav-toggler-line bg-white"></i>
-                <i class="sidenav-toggler-line bg-white"></i>
-                <i class="sidenav-toggler-line bg-white"></i>
-              </div>
-            </a>
-          </li>
-          <li class="px-3 nav-item d-flex align-items-center">
-            <a class="p-0 nav-link text-white" @click="toggleConfigurator">
-              <i class="cursor-pointer fa fa-cog fixed-plugin-button-nav"></i>
-            </a>
-          </li>
           <li
             class="nav-item dropdown d-flex align-items-center pe-2"
           >
             <div class="position-relative">
-              <a
+                <a
                 href="#"
                 class="p-0 nav-link text-white position-relative"
                 id="notificationButton"

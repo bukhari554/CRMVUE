@@ -17,7 +17,7 @@ const getRoute = () => {
     <ul class="navbar-nav">
       <li class="nav-item">
         <sidenav-item
-          to="/user/dashboard"
+          to="/admin/dashboard"
           :class="getRoute() === 'UserDashboard' ? 'active' : ''"
           navText="Dashboard"
         >
@@ -29,9 +29,9 @@ const getRoute = () => {
 
       <li class="nav-item">
         <sidenav-item
-          to="/user/profile"
-          :class="getRoute() === 'Profile' ? 'active' : ''"
-          navText="Profile"
+          to="/admin/clients"
+          :class="getRoute() === 'clients' ? 'active' : ''"
+          navText="Clients"
         >
           <template v-slot:icon>
             <i class="ni ni-single-02 text-warning text-sm opacity-10"></i>
@@ -41,7 +41,7 @@ const getRoute = () => {
 
       <li class="nav-item">
         <sidenav-item
-          to="/user/tickets"
+          to="/admin/tickets"
           :class="getRoute() === 'ticket' ? 'active' : ''"
           navText="Support"
         >

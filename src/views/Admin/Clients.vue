@@ -1,7 +1,6 @@
 <script setup>
-import Test from "@/components/Test.vue";
+import DefaultDashboard from "@/views/Admin/AdminDashboard.vue";
 </script>
-
 <template>
-  <Test />
+  <default-dashboard />
 </template>
