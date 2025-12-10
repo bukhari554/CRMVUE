@@ -1,24 +1,24 @@
 .dark-version {
-  background-color: $dark-version-bg-color !important;
+  background-color: $white !important;
 
   > div[class*="bg-"] {
-    background-color: $dark-version-bg-color !important;
+    background-color: $white !important;
   }
 
   .sidenav {
-    background: $dark-version-sidenav-bg-color !important;
+    background: $light !important;
 
     &.bg-transparent {
       background: transparent !important;
 
       .navbar-nav {
         .nav-link {
-          color: $white !important;
+          color: $dark !important;
         }
       }
       .nav {
         .nav-link {
-          color: $white !important;
+          color: $dark !important;
         }
       }
     }
@@ -29,7 +29,7 @@
       .navbar-nav {
         .nav-link {
           &.active:after {
-            color: $dark-version-caret-sidebar-color;
+            color: $primary;
           }
         }
       }
@@ -52,12 +52,12 @@
     .btn {
       &.bg-gradient-dark,
       &.btn-outline-dark {
-        color: $white !important;
-        border: 1px solid $white !important;
+        color: $dark !important;
+        border: 1px solid $dark !important;
       }
       &.active {
-        background: $white !important;
-        color: $h-color !important;
+        background: $dark !important;
+        color: $white !important;
       }
     }
   }
@@ -65,8 +65,8 @@
   .bg-gradient-dark {
     background-image: linear-gradient(
       195deg,
-      $dark-gradient-dark,
-      $dark-gradient-state-dark
+      #e0e0e0,
+      #f5f5f5
     );
   }
 
@@ -74,27 +74,27 @@
   .swal2-popup,
   .dropdown .dropdown-menu,
   .kanban-board {
-    background: $dark-version-card-bg-color;
-    box-shadow: $dark-version-card-box-shadow;
+    background: $white;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 
     .card-header {
       background: transparent;
     }
 
     p {
-      color: $white !important;
-      opacity: 0.6;
+      color: $dark !important;
+      opacity: 0.8;
     }
   }
 
   .kanban-item {
-    background: transparent !important;
-    border: 1px solid;
+    background: $light !important;
+    border: 1px solid rgba(0, 0, 0, 0.1);
   }
 
   .swal2-html-container {
-    color: $white !important;
-    opacity: 0.6;
+    color: $dark !important;
+    opacity: 0.8;
   }
 
   h1,
@@ -114,17 +114,19 @@
     ):not(.btn):not(.nav-link):not(.fixed-plugin-button),
   .table thead tr th,
   .kanban-title-board {
-    color: $white !important;
+    color: $dark !important;
   }
 
   .input-group {
     &.input-group-dynamic,
     &.input-group-static {
       .form-control {
-        background-image: $dark-version-input-bg-image !important;
+        background-image: linear-gradient(0deg, $primary 2px, rgba($primary, 0) 0),
+          linear-gradient(0deg, #d2d2d2 1px, rgba(#d2d2d2, 0) 0) !important;
         background-size:
           0 100%,
           100% 100%;
+        color: $dark !important;
         &:focus {
           background-size:
             100% 100%,
@@ -135,122 +137,123 @@
 
     &.input-group-outline {
       .form-control {
-        border-color: $dark-version-border-color !important;
+        border-color: #d2d2d2 !important;
+        color: $dark !important;
       }
     }
 
     .is-valid,
     .is-invalid {
-      border-color: $dark-version-border-color !important;
+      border-color: #d2d2d2 !important;
     }
   }
 
   .accordion {
     .accordion-button {
-      border-color: $dark-version-border-color !important;
-      color: $white;
-      opacity: 0.8;
+      border-color: #d2d2d2 !important;
+      color: $dark;
+      opacity: 0.9;
     }
   }
 
   .table > :not(caption) > * > * {
-    border-color: $dark-version-border-color !important;
-    color: $dark-version-table-color !important;
+    border-color: #e0e0e0 !important;
+    color: $dark !important;
   }
 
   label {
-    color: $dark-version-body-color !important;
+    color: #555555 !important;
   }
 
   .list-group-item,
   .multisteps-form__panel {
-    background-color: transparent !important;
-    border-color: rgba(255, 255, 255, 0.15) !important;
+    background-color: $white !important;
+    border-color: rgba(0, 0, 0, 0.1) !important;
   }
 
   .nav {
     &.bg-white {
-      background-color: $dark-version-card-bg-color !important;
-      box-shadow: $dark-version-card-box-shadow;
+      background-color: $white !important;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
 
     .nav-link[data-scroll]:hover {
-      color: $h-color !important;
+      color: $primary !important;
     }
   }
 
   .toast {
-    background-color: $dark-version-card-bg-color !important;
-    box-shadow: $dark-version-card-box-shadow;
+    background-color: $white !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 
     .toast-header {
       background: transparent;
     }
 
     span {
-      color: $white;
+      color: $dark;
     }
 
     p {
-      color: $white !important;
-      opacity: 0.6;
+      color: $dark !important;
+      opacity: 0.8;
     }
   }
 
   .choices {
     .choices__input {
-      background-color: transparent !important;
-      border-bottom: 1px solid $dark-version-border-color;
-      color: $white;
+      background-color: $white !important;
+      border-bottom: 1px solid #d2d2d2;
+      color: $dark;
     }
     .choices__list.choices__list--dropdown {
-      background: $dark-version-card-bg-color;
-      box-shadow: $dark-version-card-box-shadow;
+      background: $white;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
   }
 
   // Fullcalendar changes
   .fc-theme-standard td,
   .fc-theme-standard th {
-    border-color: $fc-theme-standard-dark-border-color;
+    border-color: #e0e0e0;
   }
 
   // Datatable changes
   .dataTable-sorter::after {
-    border-bottom-color: $white;
+    border-bottom-color: $dark;
   }
 
   .dataTable-sorter::before {
-    border-top-color: $white;
+    border-top-color: $dark;
   }
 
   // Quill changes
   .ql-snow .ql-stroke {
-    stroke: $light;
+    stroke: $dark;
   }
 
   .ql-snow .ql-fill,
   .ql-snow .ql-stroke.ql-fill {
-    fill: $light;
+    fill: $dark;
   }
 
   .ql-toolbar.ql-snow .ql-picker-label {
-    color: $light;
+    color: $dark;
   }
 
   .navbar-vertical {
     .navbar-nav {
       .nav-item {
         .nav-link {
-          color: $white;
-          opacity: 0.8;
+          color: $dark;
+          opacity: 0.9;
 
           &[data-bs-toggle="collapse"]:after {
-            color: $white;
+            color: $dark;
           }
 
           &.active {
-            box-shadow: $dark-nav-link-active-shadow;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
           }
         }
         .collapse,
@@ -258,8 +261,8 @@
           .nav {
             .nav-item {
               .nav-link {
-                color: $white;
-                opacity: 0.6;
+                color: $dark;
+                opacity: 0.7;
 
                 &.active {
                   opacity: 1;
@@ -274,5 +277,6 @@
 }
 
 body.dark-version {
-  color: $dark-version-body-color !important;
+  color: #344767 !important;
+  background-color: $white !important;
 }

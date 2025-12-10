@@ -1,4 +1,5 @@
 import { createStore } from "vuex";
+import { APP_CONFIG } from '@/Data/appConfig.js'; // Import karein
 
 export default createStore({
   state: {
@@ -22,6 +23,10 @@ export default createStore({
     token: null,
     user: null,
     apiKey: null,
+    
+    // ==================== COMPANY INFO STATE ==================== 
+    companyName: APP_CONFIG.appName || "ABC Forex Trading", // Config se initialize
+    logoUrl: APP_CONFIG.logo || "/img/logo.png", // Config se initialize
   },
   
   mutations: {
@@ -62,6 +67,16 @@ export default createStore({
     },
     setHideConfigButton(state, value) {
       state.hideConfigButton = value;
+    },
+
+    // ==================== COMPANY INFO MUTATIONS ====================
+    setCompanyName(state, name) {
+      state.companyName = name;
+      localStorage.setItem("company_name", name);
+    },
+    setLogoUrl(state, url) {
+      state.logoUrl = url;
+      localStorage.setItem("logo_url", url);
     },
 
     // ==================== AUTHENTICATION MUTATIONS ====================

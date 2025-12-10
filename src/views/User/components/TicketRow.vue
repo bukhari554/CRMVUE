@@ -59,60 +59,6 @@ const formatDate = (dateString) => {
   }
 };
 
-const truncateMessage = (message, maxLength = 50) => {
-  if (!message || typeof message !== 'string') return '—';
-  const trimmed = message.trim();
-  if (!trimmed) return '—';
-  return trimmed.length > maxLength ? trimmed.substring(0, maxLength) + '...' : trimmed;
-};
-
-// Get last message from ticket
-const getLastMessage = (ticket) => {
-  // Check if ticket has last_message field (common API pattern)
-  if (ticket.last_message) {
-    return truncateMessage(ticket.last_message, 50);
-  }
-  
-  // Check if ticket has messages array
-  if (ticket.messages && Array.isArray(ticket.messages) && ticket.messages.length > 0) {
-    // Sort messages by created_at to get the most recent one
-    const sortedMessages = [...ticket.messages].sort((a, b) => {
-      const dateA = new Date(a.created_at || a.createdAt || 0);
-      const dateB = new Date(b.created_at || b.createdAt || 0);
-      return dateB - dateA;
-    });
-    const lastMsg = sortedMessages[0];
-    // Handle different message field names
-    const messageText = lastMsg.message || lastMsg.content || lastMsg.text || lastMsg.body;
-    if (messageText) {
-      return truncateMessage(messageText, 50);
-    }
-  }
-  
-  // Check for conversation array
-  if (ticket.conversation && Array.isArray(ticket.conversation) && ticket.conversation.length > 0) {
-    const sortedConversation = [...ticket.conversation].sort((a, b) => {
-      const dateA = new Date(a.created_at || a.createdAt || 0);
-      const dateB = new Date(b.created_at || b.createdAt || 0);
-      return dateB - dateA;
-    });
-    const lastConv = sortedConversation[0];
-    const messageText = lastConv.message || lastConv.content || lastConv.text || lastConv.body;
-    if (messageText) {
-      return truncateMessage(messageText, 50);
-    }
-  }
-  
-  // Fallback to ticket message, description, or subject
-  return truncateMessage(
-    ticket.message || 
-    ticket.description || 
-    ticket.last_reply || 
-    ticket.recent_message ||
-    '', 
-    50
-  );
-};
 </script>
 
 <template>
@@ -143,7 +89,6 @@ const getLastMessage = (ticket) => {
     <td class="text-sm text-dark" style="padding: 0.75rem;">{{ ticket.category?.name || ticket.category || '—' }}</td>
     <td class="text-sm text-dark" style="padding: 0.75rem;">{{ formatDate(ticket.start_date || ticket.created_at) }}</td>
     <td class="text-sm text-dark" style="padding: 0.75rem;">{{ ticket.subject || '—' }}</td>
-    <td class="text-sm text-muted" style="padding: 0.75rem;">{{ getLastMessage(ticket) }}</td>
     <td style="padding: 0.75rem;">
       <ArgonButton
         color="success"

@@ -96,10 +96,13 @@ export async function apiPut(endpoint, data, options = {}) {
  * Make a PATCH request
  */
 export async function apiPatch(endpoint, data, options = {}) {
+  // If data is FormData, don't stringify
+  const isFormData = data instanceof FormData;
+  
   return apiCall(endpoint, {
     ...options,
     method: "PATCH",
-    body: JSON.stringify(data),
+    body: isFormData ? data : JSON.stringify(data),
   });
 }
 

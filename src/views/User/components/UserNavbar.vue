@@ -2,10 +2,14 @@
 import { computed, ref, onMounted, onUnmounted } from "vue";
 import { useStore } from "vuex";
 import { useRoute, useRouter } from "vue-router";
-import Breadcrumbs from "@/examples/Breadcrumbs.vue";
 import { apiPost, apiGet, apiPatch } from "@/utils/api.js";
 
+/* eslint-disable no-unused-vars */
+
+const showMenu = ref(false);
 const showUserMenu = ref(false);
+const showMobileMenu = ref(false);
+const isLoggingOut = ref(false);
 const store = useStore();
 const router = useRouter();
 
@@ -24,10 +28,17 @@ const unreadCount = computed(() => {
 const currentRouteName = computed(() => {
   return route.name;
 });
-const currentDirectory = computed(() => {
-  let dir = route.path.split("/")[1];
-  return dir.charAt(0).toUpperCase() + dir.slice(1);
-});
+
+// User pages navigation menu
+const userPages = [
+  { name: 'Dashboard', path: '/user/dashboard', icon: 'fa-tachometer-alt', routeName: 'UserDashboard' },
+  { name: 'Profile', path: '/user/profile', icon: 'fa-user', routeName: 'UserProfile' },
+  { name: 'Tickets', path: '/user/tickets', icon: 'fa-ticket-alt', routeName: 'UserTickets' },
+];
+
+const isActivePage = (routeName) => {
+  return currentRouteName.value === routeName;
+};
 
 const currentUser = computed(() => store.getters.currentUser);
 const userName = computed(() => {
@@ -39,25 +50,90 @@ const userName = computed(() => {
   return "User";
 });
 
-const minimizeSidebar = () => store.commit("sidebarMinimize");
-const toggleConfigurator = () => store.commit("toggleConfigurator");
-
-const closeUserMenu = () => {
-  setTimeout(() => {
-    showUserMenu.value = false;
-  }, 100);
+const toggleMobileMenu = (event) => {
+  event?.stopPropagation();
+  showMobileMenu.value = !showMobileMenu.value;
 };
 
-const handleLogout = async () => {
-  try {
-    await apiPost("/client/logout", {});
-  } catch (error) {
-    console.error("Logout error:", error);
-  } finally {
-    // Logout locally regardless of API response
-    store.dispatch("logout");
-    router.push("/signin");
+// Close dropdowns when clicking outside
+const handleClickOutside = (event) => {
+  const userMenuEl = document.getElementById('userMenuButton');
+  const notifMenuEl = document.getElementById('dropdownMenuButton');
+  
+  if (userMenuEl && !userMenuEl.closest('.dropdown')?.contains(event.target)) {
+    showUserMenu.value = false;
   }
+  if (notifMenuEl && !notifMenuEl.closest('.dropdown')?.contains(event.target)) {
+    showMenu.value = false;
+  }
+  
+  // Handle notification modal backdrop
+  const target = event.target;
+  const notificationDropdown = document.getElementById("notificationDropdown");
+  const notificationButton = document.getElementById("notificationButton");
+  
+  if (
+    showNotifications.value &&
+    target.classList.contains('position-fixed') &&
+    notificationDropdown &&
+    !notificationDropdown.contains(target) &&
+    notificationButton &&
+    !notificationButton.contains(target)
+  ) {
+    showNotifications.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
+
+const toggleUserMenu = (event) => {
+  event.stopPropagation();
+  showUserMenu.value = !showUserMenu.value;
+  showMenu.value = false; // Close other dropdown
+};
+
+const toggleNotifMenu = (event) => {
+  event.stopPropagation();
+  showMenu.value = !showMenu.value;
+  showUserMenu.value = false; // Close other dropdown
+};
+
+const handleLogout = async (event) => {
+  // Stop event bubbling
+  event.stopPropagation();
+  
+  // Prevent double clicks
+  if (isLoggingOut.value) return;
+  isLoggingOut.value = true;
+  
+  console.log("🔄 Logout started...");
+  
+  try {
+    const response = await apiPost("/client/logout", {});
+    console.log("✅ Logout API response:", response);
+  } catch (error) {
+    console.error("❌ Logout API error:", error);
+  }
+  
+  // Always cleanup and redirect (even if API fails)
+  console.log("🧹 Cleaning up...");
+  
+  // Dispatch Vuex logout
+  store.dispatch("logout");
+  
+  console.log("✅ Redirecting to login...");
+  
+  isLoggingOut.value = false;
+  showUserMenu.value = false;
+  
+  // Redirect to login
+  router.push("/signin");
 };
 
 // Notification functions
@@ -85,6 +161,7 @@ const loadNotifications = async () => {
 const toggleNotifications = (event) => {
   event?.stopPropagation();
   showNotifications.value = !showNotifications.value;
+  showMenu.value = false; // Close other dropdown
   if (showNotifications.value && !loadingNotifications.value) {
     // Always reload notifications when opening to get latest updates
     loadNotifications();
@@ -172,78 +249,61 @@ const formatTime = (dateString) => {
   }
 };
 
-// Click outside handler (for modal backdrop)
-const handleClickOutside = (event) => {
-  const target = event.target;
-  const notificationDropdown = document.getElementById("notificationDropdown");
-  const notificationButton = document.getElementById("notificationButton");
-  
-  // Only handle if clicking on the backdrop (the overlay div itself)
-  if (
-    showNotifications.value &&
-    target.classList.contains('position-fixed') &&
-    notificationDropdown &&
-    !notificationDropdown.contains(target) &&
-    notificationButton &&
-    !notificationButton.contains(target)
-  ) {
-    showNotifications.value = false;
-  }
-};
-
-onMounted(() => {
-  loadNotifications();
-  document.addEventListener("click", handleClickOutside);
-});
-
-onUnmounted(() => {
-  document.removeEventListener("click", handleClickOutside);
-});
 </script>
-<template>
-  <nav
-    class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl"
-    v-bind="$attrs"
-    id="navbarBlur"
-    data-scroll="true"
-  >
-    <div class="px-3 py-1 container-fluid">
-      <breadcrumbs
-        :current-page="currentRouteName"
-        :current-directory="currentDirectory"
-      />
 
-      <div
-        class="mt-2 collapse navbar-collapse mt-sm-0 me-md-0 me-sm-4"
-        id="navbar"
-      >
-        <ul class="navbar-nav justify-content-end ms-md-auto">
-          <li
-            class="nav-item dropdown d-flex align-items-center pe-2"
-          >
-            <a
-              href="#"
-              class="p-0 nav-link text-white d-flex align-items-center"
-              :class="[showUserMenu ? 'show' : '']"
-              id="userMenuButton"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
-              @click="showUserMenu = !showUserMenu"
-              @blur="closeUserMenu"
+<template>
+  <nav class="navbar navbar-main navbar-expand-lg px-1 shadow-none border-radius-xl bg-white">
+    <div class="px-3 py-1 container-fluid d-flex align-items-center">
+      <!-- Left Side: User Pages Navigation Menu -->
+      <div class="d-flex align-items-center w-100">
+        <!-- User Pages Navigation Menu (Desktop) -->
+        <div class="d-none d-lg-flex align-items-center admin-nav-menu">
+          <ul class="navbar-nav flex-row align-items-center">
+            <li 
+              v-for="page in userPages" 
+              :key="page.path"
+              class="nav-item"
             >
-              <i class="fa fa-user me-2"></i>
-              <span class="d-sm-inline d-none">{{ userName }}</span>
-              <i class="fas fa-chevron-down ms-2" style="font-size: 0.75rem;"></i>
+              <router-link
+                :to="page.path"
+                class="nav-link text-dark dark:text-light d-flex align-items-center px-2"
+                :class="{ 'active': isActivePage(page.routeName) }"
+                :title="page.name"
+              >
+                <i :class="`fa ${page.icon}`"></i>
+                <span class="ms-1">{{ page.name }}</span>
+              </router-link>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Right Side Icons - ALWAYS VISIBLE -->
+      <div class="d-flex align-items-center ms-auto flex-nowrap">
+        <ul class="navbar-nav flex-row align-items-center">
+          
+          <!-- User Menu -->
+          <li class="nav-item dropdown d-flex align-items-center pe-2">
+            <a
+              href="javascript:void(0)"
+              class="p-0 nav-link text-dark dark:text-light d-flex align-items-center"
+              id="userMenuButton"
+              @click="toggleUserMenu"
+            >
+              <i class="fa fa-user me-sm-2"></i>
+              <span class="d-none d-sm-inline text-truncate text-nowrap d-inline-block" style="max-width: 120px;">{{ userName }}</span>
+              <i class="fas fa-chevron-down ms-2 d-none d-sm-inline text-dark dark:text-light" style="font-size: 0.75rem;"></i>
             </a>
             <ul
-              class="px-2 py-3 dropdown-menu dropdown-menu-end me-sm-n4"
-              :class="showUserMenu ? 'show' : ''"
+              class="px-2 py-3 dropdown-menu dropdown-menu-end me-sm-n4 bg-white dark:bg-darkCard"
+              :class="{ 'show': showUserMenu }"
               aria-labelledby="userMenuButton"
+              @click.stop
             >
               <li>
                 <router-link
-                  to="/profile"
-                  class="dropdown-item border-radius-md"
+                  to="/user/profile"
+                  class="dropdown-item border-radius-md text-dark dark:text-light"
                   @click="showUserMenu = false"
                 >
                   <div class="d-flex align-items-center">
@@ -252,51 +312,29 @@ onUnmounted(() => {
                   </div>
                 </router-link>
               </li>
-              <li>
-                <hr class="dropdown-divider" />
-              </li>
+              <li><hr class="dropdown-divider" /></li>
               <li>
                 <a
-                  href="#"
-                  class="dropdown-item border-radius-md text-danger"
-                  @click.prevent="handleLogout"
+                  href="javascript:void(0)"
+                  class="dropdown-item border-radius-md text-danger d-flex align-items-center"
+                  :class="{ 'disabled': isLoggingOut }"
+                  @click="handleLogout"
                 >
-                  <div class="d-flex align-items-center">
-                    <i class="fa fa-sign-out me-2"></i>
-                    <span>Logout</span>
-                  </div>
+                  <i class="fas me-2" :class="isLoggingOut ? 'fa-spinner fa-spin' : 'fa-power-off'"></i>
+                  <span>{{ isLoggingOut ? 'Logging out...' : 'Logout' }}</span>
                 </a>
               </li>
             </ul>
           </li>
-          <li class="nav-item d-xl-none ps-3 d-flex align-items-center">
-            <a
-              href="#"
-              @click="minimizeSidebar"
-              class="p-0 nav-link text-white"
-              id="iconNavbarSidenav"
-            >
-              <div class="sidenav-toggler-inner">
-                <i class="sidenav-toggler-line bg-white"></i>
-                <i class="sidenav-toggler-line bg-white"></i>
-                <i class="sidenav-toggler-line bg-white"></i>
-              </div>
-            </a>
-          </li>
-          <li class="px-3 nav-item d-flex align-items-center">
-            <a class="p-0 nav-link text-white" @click="toggleConfigurator">
-              <i class="cursor-pointer fa fa-cog fixed-plugin-button-nav"></i>
-            </a>
-          </li>
-          <li
-            class="nav-item dropdown d-flex align-items-center pe-2"
-          >
+
+          <!-- Notifications -->
+          <li class="nav-item dropdown d-flex align-items-center">
             <div class="position-relative">
               <a
-                href="#"
-                class="p-0 nav-link text-white position-relative"
+                href="javascript:void(0)"
+                class="p-0 nav-link text-dark dark:text-light position-relative"
                 id="notificationButton"
-                @click.stop.prevent="toggleNotifications"
+                @click="toggleNotifications"
               >
                 <i class="cursor-pointer fa fa-bell"></i>
                 <span
@@ -307,10 +345,63 @@ onUnmounted(() => {
               </a>
             </div>
           </li>
+
+          <!-- Mobile Menu Toggle Button -->
+          <li class="nav-item d-lg-none d-flex align-items-center">
+            <a
+              href="javascript:void(0)"
+              id="mobileMenuToggle"
+              class="p-0 nav-link text-dark dark:text-light"
+              @click="toggleMobileMenu"
+              aria-label="Toggle navigation menu"
+            >
+              <i class="fas" :class="showMobileMenu ? 'fa-times' : 'fa-bars'"></i>
+            </a>
+          </li>
+
         </ul>
       </div>
     </div>
   </nav>
+
+  <!-- Mobile Sidebar Menu (Left Side) -->
+  <div
+    v-if="showMobileMenu"
+    class="mobile-sidebar-overlay"
+    @click="showMobileMenu = false"
+  ></div>
+  <div
+    id="mobileNavMenu"
+    class="mobile-sidebar"
+    :class="{ 'mobile-sidebar-open': showMobileMenu }"
+  >
+    <div class="mobile-sidebar-header">
+      <button
+        class="btn btn-link p-0 text-dark"
+        @click="showMobileMenu = false"
+        aria-label="Close menu"
+      >
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <ul class="mobile-sidebar-nav">
+      <li 
+        v-for="page in userPages" 
+        :key="page.path"
+        class="mobile-sidebar-item"
+      >
+        <router-link
+          :to="page.path"
+          class="mobile-sidebar-link d-flex align-items-center"
+          :class="{ 'active': isActivePage(page.routeName) }"
+          @click="showMobileMenu = false"
+        >
+          <i :class="`fa ${page.icon} me-3`"></i>
+          <span>{{ page.name }}</span>
+        </router-link>
+      </li>
+    </ul>
+  </div>
   
   <!-- Notification Modal Popup -->
   <div
@@ -411,3 +502,191 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Mobile menu toggle button */
+#mobileMenuToggle {
+  cursor: pointer;
+}
+
+#mobileMenuToggle:hover {
+  opacity: 0.7;
+}
+
+/* Mobile icon spacing fix */
+@media (max-width: 575.98px) {
+  .navbar-nav .nav-item {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  
+  .navbar-nav .nav-link i {
+    font-size: 1.1rem;
+  }
+}
+
+/* Ensure icons are always in a row */
+.navbar-nav.flex-row {
+  flex-direction: row !important;
+}
+
+/* Dropdown styling */
+.dropdown-menu {
+  display: none;
+  position: absolute;
+}
+
+.dropdown-menu.show {
+  display: block;
+}
+
+.dropdown-item.disabled {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Cursor pointer for clickable items */
+.nav-link {
+  cursor: pointer;
+}
+
+/* User Navigation Menu Styles */
+.admin-nav-menu {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.admin-nav-menu .navbar-nav {
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  justify-content: flex-start;
+}
+
+.admin-nav-menu .nav-link {
+  white-space: nowrap;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  padding: 0.5rem 0.75rem !important;
+}
+
+.admin-nav-menu .nav-link:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.admin-nav-menu .nav-link.active {
+  background-color: #000000;
+  color: #ffffff !important;
+}
+
+.admin-nav-menu .nav-link.active i {
+  color: #ffffff !important;
+}
+
+.admin-nav-menu .nav-link i {
+  font-size: 1rem;
+}
+
+/* Mobile Sidebar Styles */
+.mobile-sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1040;
+  transition: opacity 0.3s ease;
+}
+
+.mobile-sidebar {
+  position: fixed;
+  top: 0;
+  left: -100%;
+  width: 280px;
+  max-width: 85vw;
+  height: 100vh;
+  background-color: #ffffff;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 1050;
+  transition: left 0.3s ease;
+  overflow-y: auto;
+}
+
+.mobile-sidebar.mobile-sidebar-open {
+  left: 0;
+}
+
+.mobile-sidebar-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.mobile-sidebar-header button {
+  font-size: 1.25rem;
+  color: #212529;
+}
+
+.mobile-sidebar-header button:hover {
+  opacity: 0.7;
+}
+
+.mobile-sidebar-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.mobile-sidebar-item {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.mobile-sidebar-link {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  color: #212529;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.mobile-sidebar-link:hover {
+  background-color: #f8f9fa;
+  color: #212529;
+}
+
+.mobile-sidebar-link.active {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+.mobile-sidebar-link.active i {
+  color: #ffffff;
+}
+
+.mobile-sidebar-link i {
+  font-size: 1.1rem;
+  width: 24px;
+  text-align: center;
+}
+
+/* Mobile responsive */
+@media (max-width: 991.98px) {
+  .navbar-main .container-fluid {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .admin-nav-menu .nav-link {
+    padding: 0.4rem 0.5rem !important;
+    font-size: 0.875rem;
+  }
+  
+  .admin-nav-menu .nav-link i {
+    font-size: 0.9rem;
+  }
+}
+</style>

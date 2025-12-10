@@ -236,27 +236,26 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-4">
-      <!-- Support Title -->
-      <h4 class="mb-3 text-dark fw-bold">Support</h4>
-      
-      <!-- Tabs -->
-      <div class="mb-4">
-        <TicketTabs v-model:activeTab="activeTab" />
-      </div>
-
-      <!-- Actions Row: Add Ticket -->
-      <div class="d-flex justify-content-end align-items-center mb-4">
-        <ArgonButton
-          color="success"
-          variant="gradient"
-          @click="showAddModal = true"
-        >
-          <i class="fas fa-plus me-1"></i>
-          Add Ticket
-        </ArgonButton>
-      </div>
+  <main class="container-fluid py-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <!-- Header: Add Ticket Button and Support Title -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h4 class="mb-0 text-dark fw-bold">Support</h4>
+          <ArgonButton
+            color="success"
+            variant="gradient"
+            @click="showAddModal = true"
+          >
+            <i class="fas fa-plus me-1"></i>
+            Add Ticket
+          </ArgonButton>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="mb-4">
+          <TicketTabs v-model:activeTab="activeTab" />
+        </div>
 
             <!-- Table -->
             <div v-if="loading" class="text-center text-muted py-5">
@@ -321,15 +320,6 @@ onMounted(() => {
                       class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7"
                       style="padding: 0.75rem;"
                     >
-                      <div class="d-flex align-items-center gap-1">
-                        Message
-                        <i class="fas fa-sort text-secondary" style="font-size: 10px;"></i>
-                      </div>
-                    </th>
-                    <th
-                      class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7"
-                      style="padding: 0.75rem;"
-                    >
                       Action
                     </th>
                   </tr>
@@ -377,8 +367,9 @@ onMounted(() => {
                 Next
               </button>
             </div>
+      </div>
     </div>
-  </div>
+  </main>
 
   <!-- Add Ticket Modal -->
   <AddTicketModal

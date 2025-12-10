@@ -50,3 +50,22 @@ const getClasses = (variant, color, size, fullWidth, active) => {
     <slot />
   </button>
 </template>
+
+<style scoped>
+/* Override gradient for success buttons - make them solid black with white text */
+.btn.bg-gradient-success {
+  background: #000000 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+.btn.bg-gradient-success:hover,
+.btn.bg-gradient-success:focus,
+.btn.bg-gradient-success:active {
+  background: #1a1a1a !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border-color: #1a1a1a !important;
+}
+</style>

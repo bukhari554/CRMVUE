@@ -4,40 +4,49 @@
 
 .breadcrumb-item {
   font-size: $font-size-sm;
+  color: #000; // normal: text black
+
+  &::before {
+    color: #000; // normal divider black
+  }
+
   &.text-white {
     &::before {
-      color: $white;
+      color: #000; // white item case → divider black
     }
   }
 }
 
 .breadcrumb-dark {
-  background-color: $breadcrumb-dark-bg;
+  background-color: #1a1a1a; // dark background
 
   .breadcrumb-item {
     font-weight: 600;
+    color: #e6e6e6; // dark mode text light
 
     a {
-      color: $breadcrumb-dark-color;
+      color: #cccccc; // link light
 
       &:hover {
-        color: $breadcrumb-dark-hover-color;
+        color: #ffffff; // hover white
       }
     }
 
     + .breadcrumb-item {
       &::before {
-        color: $breadcrumb-dark-divider-color;
+        color: #888888; // divider light gray
       }
     }
 
     &.active {
-      color: $breadcrumb-dark-active-color;
+      color: #ffffff; // active item white
     }
   }
 }
 
+//
 // Links
+//
 
 .breadcrumb-links {
   padding: 0;

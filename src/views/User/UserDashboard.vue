@@ -1,5 +1,4 @@
 <script setup>
-import UserNavbar from "./components/UserNavbar.vue";
 import MiniStatisticsCard from "@/examples/Cards/MiniStatisticsCard.vue";
 import GradientLineChart from "@/examples/Charts/GradientLineChart.vue";
 import Carousel from "./components/Carousel.vue";
@@ -41,7 +40,7 @@ const sales = {
 };
 </script>
 <template>
-  <UserNavbar/>
+  
   <div class="py-4 container-fluid">
     <div class="row">
       <div class="col-lg-12">
