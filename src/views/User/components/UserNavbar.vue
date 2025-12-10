@@ -6,7 +6,10 @@ import { apiPost, apiGet, apiPatch } from "@/utils/api.js";
 
 /* eslint-disable no-unused-vars */
 
+<<<<<<< HEAD
 const showMenu = ref(false);
+=======
+>>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
 const showUserMenu = ref(false);
 const showMobileMenu = ref(false);
 const isLoggingOut = ref(false);
@@ -50,6 +53,7 @@ const userName = computed(() => {
   return "User";
 });
 
+<<<<<<< HEAD
 const toggleMobileMenu = (event) => {
   event?.stopPropagation();
   showMobileMenu.value = !showMobileMenu.value;
@@ -62,6 +66,25 @@ const handleClickOutside = (event) => {
   
   if (userMenuEl && !userMenuEl.closest('.dropdown')?.contains(event.target)) {
     showUserMenu.value = false;
+=======
+const closeUserMenu = () => {
+  showUserMenu.value = false;
+};
+
+const handleLogout = async () => {
+  // First close the menu immediately
+  showUserMenu.value = false;
+  
+  try {
+    const response = await apiPost("/client/logout", {});
+    console.log("Logout API response:", response);
+  } catch (error) {
+    console.error("Logout error:", error);
+  } finally {
+    // Logout locally regardless of API response
+    store.dispatch("logout");
+    router.push("/signin");
+>>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
   }
   if (notifMenuEl && !notifMenuEl.closest('.dropdown')?.contains(event.target)) {
     showMenu.value = false;
@@ -250,6 +273,7 @@ const formatTime = (dateString) => {
 };
 
 </script>
+<<<<<<< HEAD
 
 <template>
   <nav class="navbar navbar-main navbar-expand-lg px-1 shadow-none border-radius-xl bg-white">
@@ -263,6 +287,38 @@ const formatTime = (dateString) => {
               v-for="page in userPages" 
               :key="page.path"
               class="nav-item"
+=======
+
+<template>
+  <nav
+    class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl"
+    v-bind="$attrs"
+    id="navbarBlur"
+    data-scroll="true"
+  >
+    <div class="px-3 py-1 container-fluid">
+      <breadcrumbs
+        :current-page="currentRouteName"
+        :current-directory="currentDirectory"
+      />
+
+      <div
+        class="mt-2 collapse navbar-collapse mt-sm-0 me-md-0 me-sm-4"
+        id="navbar"
+      >
+        <ul class="navbar-nav justify-content-end ms-md-auto">
+          <li
+            class="nav-item dropdown d-flex align-items-center pe-2"
+          >
+              <a 
+              href="#"
+              class="p-0 nav-link text-white d-flex align-items-center"
+              :class="[showUserMenu ? 'show' : '']"
+              id="userMenuButton"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+              @click.prevent="showUserMenu = !showUserMenu"
+>>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
             >
               <router-link
                 :to="page.path"
@@ -302,9 +358,15 @@ const formatTime = (dateString) => {
             >
               <li>
                 <router-link
+<<<<<<< HEAD
                   to="/user/profile"
                   class="dropdown-item border-radius-md text-dark dark:text-light"
                   @click="showUserMenu = false"
+=======
+                  to="/profile"
+                  class="dropdown-item border-radius-md"
+                  @click="closeUserMenu"
+>>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
                 >
                   <div class="d-flex align-items-center">
                     <i class="fa fa-user me-2"></i>
@@ -326,6 +388,7 @@ const formatTime = (dateString) => {
               </li>
             </ul>
           </li>
+<<<<<<< HEAD
 
           <!-- Notifications -->
           <li class="nav-item dropdown d-flex align-items-center">
@@ -333,6 +396,15 @@ const formatTime = (dateString) => {
               <a
                 href="javascript:void(0)"
                 class="p-0 nav-link text-dark dark:text-light position-relative"
+=======
+          <li
+            class="nav-item dropdown d-flex align-items-center pe-2"
+          >
+            <div class="position-relative">
+                <a
+                href="#"
+                class="p-0 nav-link text-white position-relative"
+>>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
                 id="notificationButton"
                 @click="toggleNotifications"
               >

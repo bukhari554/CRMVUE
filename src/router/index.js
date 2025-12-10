@@ -2,7 +2,11 @@ import { createRouter, createWebHistory } from 'vue-router'
 import store from '@/store/index.js'
 import { adminGuard, userGuard, guestGuard } from './Guard.js'
 import AdminDashboard from '@/views/Admin/AdminDashboard.vue'
+<<<<<<< HEAD
 import AdminSettings from '@/views/Admin/Settings.vue'
+=======
+import AdminSettings from '@/views/Admin/Setting.vue'
+>>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
 import AdminSignin from '@/views/Admin/AdminSignin.vue'
 import UserDashboard from '@/views/User/UserDashboard.vue'
 import UserProfile from '@/views/User/Profile.vue'
@@ -18,7 +22,10 @@ import KYCRequest from '@/views/Admin/KYCRequest.vue'
 import SubAdmin from '@/views/Admin/SubAdmin.vue'
 import AdminTickets from '@/views/Admin/AdminTickets.vue'
 import Withdrawl from '@/views/Admin/Withdrawl.vue'
+<<<<<<< HEAD
 import AdminProfile from '@/views/Admin/AdminProfile.vue'
+=======
+>>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
 // Routes
 const routes = [
   {
@@ -43,7 +50,10 @@ const routes = [
   { path: '/admin/subadmin', name: 'SubAdmin', component: SubAdmin },
   { path: '/admin/admintickets', name: 'AdminTickets', component: AdminTickets },
   { path: '/admin/withdrawl', name: 'Withdrawl', component: Withdrawl },
+<<<<<<< HEAD
   { path: '/admin/profile', name: 'AdminProfile', component: AdminProfile },
+=======
+>>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
   { path: '/signin', name: 'Signin', component: Signin },
   { path: '/signup', name: 'Signup', component: Signup },
   { path: '/user/dashboard', name: 'UserDashboard', component: UserDashboard },

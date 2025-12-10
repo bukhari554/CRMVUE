@@ -1,4 +1,5 @@
 <script setup>
+<<<<<<< HEAD
 import { ref, onMounted, watch } from 'vue';
 import ArgonButton from '@/components/ArgonButton.vue';
 import TicketRow from './components/TicketRow.vue';
@@ -360,3 +361,11 @@ onMounted(() => {
   background-color: #f8f9fa;
 }
 </style>
+=======
+import Test from "@/components/Test.vue";
+</script>
+
+<template>
+  <Test />
+</template>
+>>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70

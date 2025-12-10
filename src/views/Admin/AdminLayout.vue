@@ -1,7 +1,13 @@
 <script setup>
 import { computed } from "vue";
 import { useStore } from "vuex";
+<<<<<<< HEAD
 import AppHeader from "@/views/Admin/components/Header.vue"; // Ye add karein
+=======
+import Sidenav from "@/views/Admin/Sidenav";
+import Configurator from "@/examples/Configurator.vue";
+
+>>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
 
 const store = useStore();
 const isNavFixed = computed(() => store.state.isNavFixed);
@@ -25,7 +31,10 @@ const navClasses = computed(() => {
   };
 });
 </script>
+<<<<<<< HEAD
 
+=======
+>>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
 <template>
   <div
     v-show="layout === 'landing'"
@@ -37,6 +46,7 @@ const navClasses = computed(() => {
   <main
     class="main-content position-relative max-height-vh-100 h-100 border-radius-lg"
   >
+<<<<<<< HEAD
     <!-- Header yahan add karein (Navbar se pehle) -->
     <AppHeader />
     
@@ -44,6 +54,16 @@ const navClasses = computed(() => {
 
     <router-view />
 
+=======
+    <!-- nav -->
+
+    <navbar :class="[navClasses]" v-if="showNavbar" />
+
+    <router-view />
+
+    
+
+>>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
     <configurator
       :toggle="toggleConfigurator"
       :class="[showConfig ? 'show' : '', hideConfigButton ? 'd-none' : '']"
