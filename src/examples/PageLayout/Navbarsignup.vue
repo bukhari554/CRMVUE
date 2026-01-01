@@ -9,15 +9,13 @@ defineProps({
     class="navbar navbar-expand-lg top-0 z-index-3 position-absolute mt-4 shadow-none my-2 w-100"
     style="background-color: #f5f5f5; border-radius: 12px;" 
   >
-    <div class="container ps-2 pe-0">
+    <div class="container ps-2 pe-0 d-flex align-items-center" style="min-height: 70px;">
       <router-link
-        class="navbar-brand font-weight-bolder ms-lg-0 ms-3"
+        class="navbar-brand font-weight-bolder ms-lg-0 ms-3 d-flex align-items-center"
         to="/"
         style="color: #000000;"
       >
-        <a href="https://www.tradewithshaw.com/wp-content/uploads/2025/01/cropped-WhatsApp_Image_2025-01-27_at_6-32x32.webp" target="_blank" rel="noopener">
-          <img src="https://www.tradewithshaw.com/wp-content/uploads/2025/01/cropped-WhatsApp_Image_2025-01-27_at_6-32x32.webp" alt="image description">
-        </a>
+        <img src="https://digiprimefx.com/wp-content/uploads/2025/11/favicon.png" alt="Company" style="height: auto; max-height: 50px;">
       </router-link>
 
       <button

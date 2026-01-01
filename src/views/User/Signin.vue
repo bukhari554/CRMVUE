@@ -7,6 +7,7 @@ import ArgonInput from "@/components/ArgonInput.vue";
 import ArgonSwitch from "@/components/ArgonSwitch.vue";
 import ArgonButton from "@/components/ArgonButton.vue";
 import { APP_CONFIG } from "@/Data/appConfig.js";
+import { showToast } from "@/utils/toast.js";
 
 const body = document.getElementsByTagName("body")[0];
 const store = useStore();
@@ -18,6 +19,7 @@ const rememberMe = ref(false);
 const loading = ref(false);
 const message = ref("");
 const messageType = ref("");
+const showPassword = ref(false);
 
 onBeforeMount(() => {
   console.log('🔍 User Signin - Checking auth status...');
@@ -115,6 +117,7 @@ const handleLogin = async () => {
         console.error('❌ Missing token or user data');
         message.value = "Login failed. Incomplete data received.";
         messageType.value = "error";
+        showToast("Login failed. Incomplete data received.", 'error');
         return;
       }
       
@@ -137,6 +140,7 @@ const handleLogin = async () => {
       
       message.value = "Login successful! Redirecting...";
       messageType.value = "success";
+      showToast("Login successful! Redirecting...", 'success');
       
       console.log('💾 User auth saved to Vuex and localStorage');
       
@@ -149,16 +153,24 @@ const handleLogin = async () => {
     } else {
       console.log('❌ User login failed');
       
-      const errorText = data?.message ||
-        (response.status === 401 ? "Invalid email or password." : "Login failed.");
+      let errorText = data?.message || (response.status === 401 ? "Invalid email or password." : "Login failed.");
+      
+      // Handle validation errors
+      if (data?.errors) {
+        const firstError = Object.values(data.errors)[0];
+        errorText = Array.isArray(firstError) ? firstError[0] : firstError;
+      }
       
       message.value = errorText;
       messageType.value = "error";
+      showToast(errorText, 'error');
     }
   } catch (error) {
     console.error('❌ User login error:', error);
-    message.value = "Unable to reach the server. Please check your connection.";
+    const errorMessage = "Unable to reach the server. Please check your connection.";
+    message.value = errorMessage;
     messageType.value = "error";
+    showToast(errorMessage, 'error');
   } finally {
     loading.value = false;
   }
@@ -177,7 +189,7 @@ const handleLogin = async () => {
       </div>
     </div>
   </div>
-  <main class="mt-0 main-content">
+  <main class="mt-0 main-content" style="padding-top: 100px;">
     <section>
       <div class="page-header min-vh-100">
         <div class="container">
@@ -214,14 +226,24 @@ const handleLogin = async () => {
                       />
                     </div>
                     <div class="mb-3">
-                      <argon-input
-                        id="password"
-                        type="password"
-                        placeholder="Password"
-                        name="password"
-                        size="lg"
-                        v-model="password"
-                      />
+                      <div class="position-relative">
+                        <argon-input
+                          id="password"
+                          :type="showPassword ? 'text' : 'password'"
+                          placeholder="Password"
+                          name="password"
+                          size="lg"
+                          v-model="password"
+                        />
+                        <button 
+                          type="button"
+                          @click="showPassword = !showPassword"
+                          class="btn btn-link position-absolute end-0 top-50 translate-middle-y p-0 pe-3"
+                          style="z-index: 10;"
+                        >
+                          <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                        </button>
+                      </div>
                     </div>
                     <argon-switch
                       id="rememberMe"
@@ -261,7 +283,7 @@ const handleLogin = async () => {
               <div
                 class="position-relative bg-gradient-primary h-100 m-3 px-7 border-radius-lg d-flex flex-column justify-content-center overflow-hidden"
                 style="
-                  background-image: url(&quot;https://raw.githubusercontent.com/creativetimofficial/public-assets/master/argon-dashboard-pro/assets/img/signin-ill.jpg&quot;);
+                  background-image: url(&quot;https://digiprimefx.com/wp-content/uploads/2024/04/h4-bg-img-1-e1763652944825.png&quot;);
                   background-size: cover;
                 "
               >
@@ -269,11 +291,10 @@ const handleLogin = async () => {
                 <h4
                   class="mt-5 text-white font-weight-bolder position-relative"
                 >
-                  "Attention is the new currency"
+                  "Elevate Your Trading Experience with DIGIPRIME FX"
                 </h4>
                 <p class="text-white position-relative">
-                  The more effortless the writing looks, the more effort the
-                  writer actually put into the process.
+                  Trade with one of the fastest-growing forex brokers in the GCC — where powerful platforms, lower costs, and advanced tools come standard.
                 </p>
               </div>
             </div>

@@ -1,42 +1,10 @@
 <script setup>
 import { computed } from "vue";
 import { useStore } from "vuex";
-<<<<<<< HEAD
-//import UserNavbar from "@/views/User/components/UserNavbar.vue";
 import AppHeader from "@/views/User/components/Header.vue";
-=======
-import UserSidenav from "@/views/User/Sidenav";
-import UserNavbar from "@/views/User/components/UserNavbar.vue";
-import Configurator from "@/examples/Configurator.vue";
->>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
 
 const store = useStore();
-
-const isNavFixed = computed(() => store.state.isNavFixed);
-const darkMode = computed(() => store.state.darkMode);
-const isAbsolute = computed(() => store.state.isAbsolute);
-<<<<<<< HEAD
-const showNavbar = computed(() => store.state.showNavbar);
 const layout = computed(() => store.state.layout);
-
-=======
-const showSidenav = computed(() => store.state.showSidenav);
-const showNavbar = computed(() => store.state.showNavbar);
-const layout = computed(() => store.state.layout);
-const showConfig = computed(() => store.state.showConfig);
-const hideConfigButton = computed(() => store.state.hideConfigButton);
-
-const toggleConfigurator = () => store.commit("toggleConfigurator");
->>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
-
-const navClasses = computed(() => {
-  return {
-    "position-sticky bg-white left-auto top-2 z-index-sticky": isNavFixed.value && !darkMode.value,
-    "position-sticky bg-default left-auto top-2 z-index-sticky": isNavFixed.value && darkMode.value,
-    "position-absolute px-4 mx-0 w-100 z-index-2": isAbsolute.value,
-    "px-0 mx-4": !isAbsolute.value,
-  };
-});
 </script>
 
 <template>
@@ -47,42 +15,68 @@ const navClasses = computed(() => {
       class="landing-bg h-100 bg-gradient-primary position-fixed w-100"
     ></div>
 
-<<<<<<< HEAD
     <!-- Main Content -->
     <main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
-      <AppHeader />
-=======
-    <!-- User Sidenav -->
-    <UserSidenav v-if="showSidenav" />
+      <div class="sticky-header">
+        <AppHeader />
+      </div>
 
-    <!-- Main Content -->
-    <main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
-      
->>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
-      <!-- User Navbar -->
-      <UserNavbar v-if="showNavbar" :class="[navClasses]" />
-
-      <!-- Page Content (slot) -->
-      <slot />
-<<<<<<< HEAD
-=======
-
-      <!-- Configurator -->
-      <Configurator 
-        :toggle="toggleConfigurator" 
-        :class="[showConfig ? 'show' : '', hideConfigButton ? 'd-none' : '']" 
->>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
-      />
+      <!-- Page Content -->
+      <div class="page-content">
+        <slot />
+      </div>
     </main>
   </div>
 </template>
 
 <style scoped>
-.user-layout {
-<<<<<<< HEAD
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
 
-=======
-  /* User specific styles if needed */
->>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
+.page-content {
+  padding-top: 0;
+}
+
+.main-content {
+  overflow-y: auto;
+  /* Hide scrollbar by default, show on hover */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+
+.main-content:hover {
+  scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+}
+
+/* For Webkit browsers (Chrome, Safari, Edge) */
+.main-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.main-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 10px;
+  transition: background-color 0.3s ease;
+}
+
+.main-content:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.main-content::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Show scrollbar while scrolling */
+.main-content::-webkit-scrollbar-thumb:active {
+  background-color: rgba(0, 0, 0, 0.6);
 }
 </style>

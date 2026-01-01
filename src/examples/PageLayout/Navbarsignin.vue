@@ -21,16 +21,13 @@ defineProps({
     class="navbar navbar-expand-lg top-0 z-index-3 position-absolute mt-4"
     :class="isBlur ? isBlur : 'shadow-none my-2 navbar-transparent w-100'"
   >
-    <div class="container ps-2 pe-0">
+    <div class="container ps-2 pe-0 d-flex align-items-center" style="min-height: 50px;">
       <router-link
-        class="navbar-brand font-weight-bolder ms-lg-0 ms-3"
+        class="navbar-brand font-weight-bolder ms-lg-0 ms-3 d-flex align-items-center"
         :class="darkMode ? 'text-black' : 'text-white'"
         to="/">
-        <a href="https://www.tradewithshaw.com/wp-content/uploads/2025/01/cropped-WhatsApp_Image_2025-01-27_at_6-32x32.webp" target="_blank" rel="noopener">
-          <img src="https://www.tradewithshaw.com/wp-content/uploads/2025/01/cropped-WhatsApp_Image_2025-01-27_at_6-32x32.webp" alt="Company">
-        </a>
-        </router-link
-      >
+        <img src="https://digiprimefx.com/wp-content/uploads/2025/11/favicon.png" alt="Company" style="height: auto; max-height: 30px;">
+      </router-link>
       <button
         class="shadow-none navbar-toggler ms-2"
         type="button"

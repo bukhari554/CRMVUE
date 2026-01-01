@@ -4,7 +4,8 @@ import { useStore } from "vuex";
 import { useRouter } from "vue-router";
 import { countries } from "@/Data/countries.js";
 import { APP_CONFIG } from "@/Data/appConfig.js";
-import Navbar from "@/examples/PageLayout/Navbarsignup.vue";
+import { showToast } from "@/utils/toast.js";
+import Navbar from "@/examples/PageLayout/Navbarsignin.vue";
 import AppFooter from "@/examples/PageLayout/Footer.vue";
 import ArgonInput from "@/components/ArgonInput.vue";
 import ArgonButton from "@/components/ArgonButton.vue";
@@ -305,6 +306,7 @@ const submitsignup = async () => {
         
         message.value = "Sign up successful! Redirecting to dashboard...";
         messageType.value = "success";
+        showToast("Sign up successful! Redirecting to dashboard...", 'success');
         
         console.log('💾 Auth data saved to store and localStorage');
         
@@ -333,6 +335,7 @@ const submitsignup = async () => {
         console.error('❌ Signup successful but missing token or user data');
         message.value = "Sign up successful. Please login.";
         messageType.value = "success";
+        showToast("Sign up successful. Please login.", 'success');
         setTimeout(() => {
           router.push("/signin");
         }, 2000);
@@ -340,18 +343,22 @@ const submitsignup = async () => {
     } else {
       console.log('❌ Signup failed:', data?.message);
       
+      let errorMessage = data.message || "Something went wrong";
       if (data?.errors) {
         const firstError = Object.values(data.errors)[0];
-        message.value = Array.isArray(firstError) ? firstError[0] : firstError;
-      } else {
-        message.value = data.message || "Something went wrong";
+        errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
       }
+      
+      message.value = errorMessage;
       messageType.value = "error";
+      showToast(errorMessage, 'error');
     }
   } catch (error) {
     console.error('❌ Signup error:', error);
-    message.value = "(ERROR 503 SERVICE UNAVAILABLE)";
+    const errorMessage = "Unable to reach the server. Please check your connection.";
+    message.value = errorMessage;
     messageType.value = "error";
+    showToast(errorMessage, 'error');
   } finally {
     loading.value = false;
   }
@@ -363,25 +370,29 @@ const submitsignup = async () => {
   <div class="container top-0 position-sticky z-index-sticky">
     <div class="row">
       <div class="col-12">
-        <navbar isBtn="bg-gradient-light" />
+        <navbar
+          isBlur="blur  border-radius-lg my-3 py-2 start-0 end-0 mx-4 shadow"
+          v-bind:darkMode="true"
+          isBtn="bg-gradient-success"
+        />
       </div>
     </div>
   </div>
 
-  <main class="main-content mt-0">
-    <div class="page-header align-items-start min-vh-50 pt-5 pb-11 m-3 border-radius-lg">
+  <main class="main-content mt-0" style="padding-top: 100px;">
+    <div class="page-header align-items-start pt-4 pb-4 m-3 border-radius-lg">
       <div class="container">
         <div class="row justify-content-center">
           <div class="col-lg-5 text-center mx-auto">
-            <h1 class="text-black mb-2 mt-5">Welcome!</h1>
-            <p class="text-lead text-black">Create a new account or login to your existing account</p>
+            <!-- <h1 class="text-black mb-2 mt-3">Welcome!</h1>
+            <p class="text-lead text-black">Create a new account or login to your existing account</p> -->
           </div>
         </div>
       </div>
     </div>
 
     <div class="container">
-      <div class="row mt-lg-n10 mt-md-n11 mt-n10 justify-content-center">
+      <div class="row mt-n6 justify-content-center">
         <div class="col-xl-7 col-lg-8 col-md-10 mx-auto">
           <div class="card z-index-0">
             <div class="card-header text-center pt-4">

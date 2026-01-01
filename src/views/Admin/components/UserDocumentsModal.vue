@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import ArgonButton from '@/components/ArgonButton.vue';
 import { apiPatch } from '@/utils/api.js';
 
@@ -24,35 +24,43 @@ const props = defineProps({
 
 const emit = defineEmits(['update:show', 'document-updated']);
 
-const activeCategory = ref('proof_of_id'); // 'proof_of_id' or 'proof_of_residence'
+const activeCategory = ref('proof_of_id');
 const submitting = ref({});
 const errorMessage = ref('');
 const successMessage = ref('');
 
-// Document type labels
 const documentTypeLabels = {
   driver_license: "Driver's License",
   passport: "Passport",
   national_id: "National ID",
+  cnic: "CNIC",
   bank_statement: "Bank Statement",
   rent_agreement: "Rent Agreement",
   utility_bill: "Utility Bill",
   wire_transfer_proof: "Wire Transfer Proof",
 };
 
-// Filter documents by category
+const filteredDocuments = computed(() => {
+  const userId = props.user?.id ?? null;
+  if (!Array.isArray(props.documents)) return [];
+  if (!userId) return props.documents;
+  return props.documents.filter((d) => {
+    const docUserId = d?.user_id ?? d?.user?.id ?? null;
+    // eslint-disable-next-line eqeqeq
+    return docUserId != null && docUserId == userId;
+  });
+});
+
 const proofIdDocuments = computed(() => {
-  if (!props.documents) return [];
-  return props.documents.filter(doc => {
+  return filteredDocuments.value.filter(doc => {
     const category = doc.category || '';
     return category === 'proof_of_id' || 
-           ['driver_license', 'passport', 'national_id'].includes(doc.document_type);
+           ['driver_license', 'passport', 'national_id', 'cnic'].includes(doc.document_type);
   });
 });
 
 const proofResidenceDocuments = computed(() => {
-  if (!props.documents) return [];
-  return props.documents.filter(doc => {
+  return filteredDocuments.value.filter(doc => {
     const category = doc.category || '';
     return category === 'proof_of_residence' || 
            ['bank_statement', 'rent_agreement', 'utility_bill', 'wire_transfer_proof'].includes(doc.document_type);
@@ -68,7 +76,6 @@ const currentDocuments = computed(() => {
   return [];
 });
 
-// Get status badge class
 const getStatusBadgeClass = (status) => {
   const s = (status || "pending").toLowerCase();
   if (s === "approved") return "badge bg-success";
@@ -77,85 +84,162 @@ const getStatusBadgeClass = (status) => {
   return "badge bg-secondary";
 };
 
-// Get status text
 const getStatusText = (status) => {
   const s = (status || "pending").toLowerCase();
   if (s === "not_submitted") return "Not Submitted";
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
-// Handle status update (accept/reject)
 const handleStatusUpdate = async (document, status) => {
   if (!document || !document.id) {
     errorMessage.value = 'Invalid document. Please refresh and try again.';
+    setTimeout(() => { errorMessage.value = ''; }, 3000);
     return;
   }
 
   if (status !== 'approved' && status !== 'rejected') {
     errorMessage.value = 'Invalid status. Please select Approved or Rejected.';
+    setTimeout(() => { errorMessage.value = ''; }, 3000);
     return;
   }
 
-  submitting.value[document.id] = true;
+  if (submitting.value[document.id]) {
+    console.log('Already processing document:', document.id);
+    return;
+  }
+
+  submitting.value = { ...submitting.value, [document.id]: true };
   errorMessage.value = '';
   successMessage.value = '';
 
   try {
-    const payload = {
-      status: status,
-    };
-
+    console.log(`Updating document ${document.id} to status: ${status}`);
+    
+    const payload = { status };
     const response = await apiPatch(`/admin/documents/${document.id}/status`, payload);
-    const data = await response.json().catch(() => null);
-
+    
     if (!response.ok) {
-      const msg =
-        data?.message ||
-        (data?.errors && Object.values(data.errors).flat().join(', ')) ||
-        'Failed to update document status.';
-      throw new Error(msg);
+      const errorData = await response.json().catch(() => ({}));
+      const errorMsg = errorData?.message || 
+                      (errorData?.errors && Object.values(errorData.errors).flat().join(', ')) ||
+                      `Failed to update document status (${response.status})`;
+      throw new Error(errorMsg);
     }
 
+    const data = await response.json().catch(() => ({}));
+    
+    console.log('Document updated successfully:', data);
     successMessage.value = data?.message || `Document ${status} successfully!`;
     
-    // Emit update to refresh list
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
     emit('document-updated');
     
-    // Clear success message after 2 seconds
     setTimeout(() => {
       successMessage.value = '';
-    }, 2000);
+    }, 2500);
+    
   } catch (err) {
     console.error('Error updating document status:', err);
-    errorMessage.value = err.message || 'Unable to update document status.';
+    errorMessage.value = err.message || 'Unable to update document status. Please try again.';
+    
     setTimeout(() => {
       errorMessage.value = '';
-    }, 3000);
+    }, 4000);
   } finally {
-    submitting.value[document.id] = false;
+    submitting.value = { ...submitting.value, [document.id]: false };
   }
 };
 
-// Select category
 const selectCategory = (category) => {
   activeCategory.value = category;
   errorMessage.value = '';
   successMessage.value = '';
 };
 
-// Close modal
 const closeModal = () => {
   emit('update:show', false);
   activeCategory.value = 'proof_of_id';
   errorMessage.value = '';
   successMessage.value = '';
+  submitting.value = {};
 };
 
-// View document images
 const showImageModal = ref(false);
 const viewingDocument = ref(null);
 
+const escapeHtml = (value) => {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
+const openDocumentInNewWindow = (doc) => {
+  const front = doc?.front_image_url || null;
+  const back = doc?.back_image_url || null;
+
+  // If only one url exists, just open it directly.
+  if (front && !back) {
+    window.open(front, "_blank");
+    return true;
+  }
+
+  // If both exist (or only back exists), open a simple preview page in a new window.
+  const win = window.open("", "_blank");
+  if (!win) return false;
+
+  const title = documentTypeLabels?.[doc?.document_type] || doc?.document_type || "Document";
+  const safeTitle = escapeHtml(title);
+
+  const imagesHtml = [
+    front
+      ? `<section class="card"><h2>Front</h2><img src="${escapeHtml(front)}" alt="Front document" /></section>`
+      : "",
+    back
+      ? `<section class="card"><h2>Back</h2><img src="${escapeHtml(back)}" alt="Back document" /></section>`
+      : "",
+  ].filter(Boolean).join("");
+
+  win.document.open();
+  win.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>${safeTitle}</title>
+        <style>
+          body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #f6f7fb; color: #111; }
+          header { padding: 14px 16px; background: #fff; border-bottom: 1px solid #e9ecef; position: sticky; top: 0; }
+          header h1 { margin: 0; font-size: 16px; font-weight: 700; }
+          main { padding: 16px; display: grid; gap: 16px; }
+          .card { background: #fff; border: 1px solid #e9ecef; border-radius: 10px; padding: 12px; }
+          .card h2 { margin: 0 0 10px; font-size: 14px; font-weight: 700; color: #344767; }
+          img { width: 100%; height: auto; max-height: 80vh; object-fit: contain; border: 1px solid #dee2e6; border-radius: 8px; background: #fff; }
+        </style>
+      </head>
+      <body>
+        <header><h1>${safeTitle}</h1></header>
+        <main>${imagesHtml || "<p>No document image available.</p>"}</main>
+      </body>
+    </html>
+  `);
+  win.document.close();
+
+  return true;
+};
+
 const viewDocument = (doc) => {
+  // Admin requirement: for Proof of Residence only, open in new browser window/tab.
+  if (activeCategory.value === "proof_of_residence") {
+    const opened = openDocumentInNewWindow(doc);
+    if (opened) return;
+    // Fallback if popups are blocked
+  }
+
   viewingDocument.value = doc;
   showImageModal.value = true;
 };
@@ -164,10 +248,17 @@ const closeImageModal = () => {
   showImageModal.value = false;
   viewingDocument.value = null;
 };
+
+watch(() => props.show, (newVal) => {
+  if (!newVal) {
+    errorMessage.value = '';
+    successMessage.value = '';
+    submitting.value = {};
+  }
+});
 </script>
 
 <template>
-  <!-- Main Modal -->
   <div
     v-if="props.show && props.user"
     class="doc-modal-backdrop"
@@ -186,9 +277,7 @@ const closeImageModal = () => {
       </div>
 
       <div class="doc-modal-content">
-        <!-- Left Sidebar -->
         <div class="doc-modal-sidebar">
-          <!-- Proof of ID Card -->
           <div
             class="doc-category-card"
             :class="{ active: activeCategory === 'proof_of_id' }"
@@ -200,7 +289,6 @@ const closeImageModal = () => {
             <div class="text-center fw-bold">Proof of ID</div>
           </div>
 
-          <!-- Proof of Residence Card -->
           <div
             class="doc-category-card"
             :class="{ active: activeCategory === 'proof_of_residence' }"
@@ -213,10 +301,8 @@ const closeImageModal = () => {
           </div>
         </div>
 
-        <!-- Right Content Area -->
         <div class="doc-modal-main">
           <div class="p-4">
-            <!-- Header with Info Icon -->
             <div class="d-flex align-items-center mb-3">
               <h6 class="mb-0 me-2">
                 {{ activeCategory === 'proof_of_id' ? 'Proof of ID' : 'Proof of Residence' }}
@@ -224,7 +310,6 @@ const closeImageModal = () => {
               <i class="fas fa-info-circle text-muted" style="font-size: 14px;"></i>
             </div>
 
-            <!-- User Info -->
             <div class="mb-3 p-3 rounded" style="background-color: #e9ecef; color: #000000; border: 1px solid #dee2e6;">
               <div class="row">
                 <div class="col-md-6 mb-2">
@@ -242,21 +327,20 @@ const closeImageModal = () => {
               </div>
             </div>
 
-            <!-- Messages -->
             <div v-if="errorMessage" class="alert alert-danger mb-3">
+              <i class="fas fa-exclamation-circle me-2"></i>
               {{ errorMessage }}
             </div>
             <div v-if="successMessage" class="alert alert-success mb-3">
+              <i class="fas fa-check-circle me-2"></i>
               {{ successMessage }}
             </div>
 
-            <!-- Loading State -->
             <div v-if="loading" class="text-center text-muted py-5">
               <i class="fas fa-spinner fa-spin me-2"></i>
               Loading documents...
             </div>
 
-            <!-- Documents Table -->
             <div v-else-if="currentDocuments.length > 0" class="mb-3" style="overflow-x: auto;">
               <table class="table table-sm">
                 <thead>
@@ -295,7 +379,8 @@ const closeImageModal = () => {
                           :disabled="submitting[doc.id]"
                           @click="handleStatusUpdate(doc, 'approved')"
                         >
-                          {{ submitting[doc.id] ? '...' : 'Approve' }}
+                          <i v-if="submitting[doc.id]" class="fas fa-spinner fa-spin"></i>
+                          {{ submitting[doc.id] ? 'Processing...' : 'Approve' }}
                         </ArgonButton>
                         <ArgonButton
                           v-if="doc.status !== 'rejected'"
@@ -304,7 +389,8 @@ const closeImageModal = () => {
                           :disabled="submitting[doc.id]"
                           @click="handleStatusUpdate(doc, 'rejected')"
                         >
-                          {{ submitting[doc.id] ? '...' : 'Reject' }}
+                          <i v-if="submitting[doc.id]" class="fas fa-spinner fa-spin"></i>
+                          {{ submitting[doc.id] ? 'Processing...' : 'Reject' }}
                         </ArgonButton>
                       </div>
                     </td>
@@ -322,7 +408,6 @@ const closeImageModal = () => {
       </div>
     </div>
 
-    <!-- Image Viewer Modal -->
     <div
       v-if="showImageModal && viewingDocument"
       class="doc-modal-backdrop"
@@ -341,7 +426,6 @@ const closeImageModal = () => {
         </div>
         <div class="image-modal-body">
           <div v-if="viewingDocument.back_image_url" class="d-flex gap-3 flex-wrap justify-content-center">
-            <!-- Front Image -->
             <div class="image-container">
               <h6 class="text-center mb-2">Front</h6>
               <img
@@ -351,7 +435,6 @@ const closeImageModal = () => {
                 class="document-image"
               />
             </div>
-            <!-- Back Image -->
             <div class="image-container">
               <h6 class="text-center mb-2">Back</h6>
               <img

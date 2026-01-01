@@ -1,225 +1,220 @@
 <script setup>
-import MiniStatisticsCard from "@/examples/Cards/MiniStatisticsCard.vue";
-import GradientLineChart from "@/examples/Charts/GradientLineChart.vue";
-import Carousel from "./components/Carousel.vue";
-import CategoriesList from "./components/CategoriesList.vue";
-import US from "@/assets/img/icons/flags/US.png";
-import DE from "@/assets/img/icons/flags/DE.png";
-import GB from "@/assets/img/icons/flags/GB.png";
-import BR from "@/assets/img/icons/flags/BR.png";
+import { computed } from "vue";
+import { useStore } from "vuex";
+import TradingAccountCard from "@/views/User/components/TradingAccountCard.vue";
+import FundsCard from "@/views/User/components/FundsCard.vue";
+import DocumentVerification from "@/views/User/components/DocumentVerification.vue";
 
-const sales = {
-  us: {
-    country: "United States",
-    sales: 2500,
-    value: "$230,900",
-    bounce: "29.9%",
-    flag: US,
-  },
-  germany: {
-    country: "Germany",
-    sales: "3.900",
-    value: "$440,000",
-    bounce: "40.22%",
-    flag: DE,
-  },
-  britain: {
-    country: "Great Britain",
-    sales: "1.400",
-    value: "$190,700",
-    bounce: "23.44%",
-    flag: GB,
-  },
-  brasil: {
-    country: "Brasil",
-    sales: "562",
-    value: "$143,960",
-    bounce: "32.14%",
-    flag: BR,
-  },
-};
+const store = useStore();
+const currentUser = computed(() => store.getters.currentUser || {});
+
+const formattedTelephone = computed(() => {
+  const u = currentUser.value;
+  if (!u.telephone && !u.country_code) return "—";
+
+  const code = u.country_code ? `(${u.country_code})` : "";
+  const phone = u.telephone || "";
+  return `${code} ${phone}`.trim();
+});
 </script>
+
 <template>
-  
   <div class="py-4 container-fluid">
-    <div class="row">
-      <div class="col-lg-12">
-        <div class="row">
-          <div class="col-lg-3 col-md-6 col-12">
-            <mini-statistics-card
-              title="Today's Money"
-              value="$53,000"
-              description="<span
-                class='text-sm font-weight-bolder text-success'
-                >+55%</span> since yesterday"
-              :icon="{
-                component: 'ni ni-money-coins',
-                background: 'bg-gradient-primary',
-                shape: 'rounded-circle',
-              }"
-            />
-          </div>
-          <div class="col-lg-3 col-md-6 col-12">
-            <mini-statistics-card
-              title="Today's Users"
-              value="2,300"
-              description="<span
-                class='text-sm font-weight-bolder text-success'
-                >+3%</span> since last week"
-              :icon="{
-                component: 'ni ni-world',
-                background: 'bg-gradient-danger',
-                shape: 'rounded-circle',
-              }"
-            />
-          </div>
-          <div class="col-lg-3 col-md-6 col-12">
-            <mini-statistics-card
-              title="New Clients"
-              value="+3,462"
-              description="<span
-                class='text-sm font-weight-bolder text-danger'
-                >-2%</span> since last quarter"
-              :icon="{
-                component: 'ni ni-paper-diploma',
-                background: 'bg-gradient-success',
-                shape: 'rounded-circle',
-              }"
-            />
-          </div>
-          <div class="col-lg-3 col-md-6 col-12">
-            <mini-statistics-card
-              title="Sales"
-              value="$103,430"
-              description="<span
-                class='text-sm font-weight-bolder text-success'
-                >+5%</span> than last month"
-              :icon="{
-                component: 'ni ni-cart',
-                background: 'bg-gradient-warning',
-                shape: 'rounded-circle',
-              }"
-            />
-          </div>
-        </div>
-        <div class="row">
-          <div class="col-lg-7 mb-lg">
-            <!-- line chart -->
-            <div class="card z-index-2">
-              <gradient-line-chart
-                id="chart-line"
-                title="Sales Overview"
-                description="<i class='fa fa-arrow-up text-success'></i>
-      <span class='font-weight-bold'>4% more</span> in 2021"
-                :chart="{
-                  labels: [
-                    'Apr',
-                    'May',
-                    'Jun',
-                    'Jul',
-                    'Aug',
-                    'Sep',
-                    'Oct',
-                    'Nov',
-                    'Dec',
-                  ],
-                  datasets: [
-                    {
-                      label: 'Mobile Apps',
-                      data: [50, 40, 300, 220, 500, 250, 400, 230, 500],
-                    },
-                  ],
-                }"
-              />
+    <!-- First Row: Profile Card + My Funds Card -->
+    <div class="row mb-4">
+      <!-- Profile Card - Left -->
+      <div class="col-lg-6 col-md-6 mb-4 mb-lg-0">
+        <div class="dashboard-card h-100">
+          <div class="card-body p-4">
+            <!-- User Icon -->
+            <div class="text-center mb-3">
+              <div class="user-avatar">
+                <i class="ni ni-single-02"></i>
+              </div>
             </div>
-          </div>
-          <div class="col-lg-5">
-            <carousel />
-          </div>
-        </div>
-        <div class="row mt-4">
-          <div class="col-lg-7 mb-lg-0 mb-4">
-            <div class="card">
-              <div class="p-3 pb-0 card-header">
-                <div class="d-flex justify-content-between">
-                  <h6 class="mb-2">Sales by Country</h6>
+
+            <!-- User Name -->
+            <h5 class="text-center mb-2 user-name">
+              {{ currentUser.name || "—" }}
+            </h5>
+
+            <!-- Account Type -->
+            <div class="text-center text-muted mb-4" style="font-size: 14px;">
+              Account Type: <span class="fw-semibold">{{ currentUser.account_type || "—" }}</span>
+            </div>
+
+            <hr class="my-3" style="border-color: #e0e0e0;" />
+
+            <!-- User Details -->
+            <div class="user-info">
+              <!-- Email -->
+              <div class="info-row">
+                <div class="info-label">
+                  <i class="fas fa-envelope me-2"></i>EMAIL
                 </div>
+                <div class="info-value">{{ currentUser.email || "—" }}</div>
               </div>
-              <div class="table-responsive">
-                <table class="table align-items-center">
-                  <tbody>
-                    <tr v-for="(sale, index) in sales" :key="index">
-                      <td class="w-30">
-                        <div class="px-2 py-1 d-flex align-items-center">
-                          <div>
-                            <img :src="sale.flag" alt="Country flag" />
-                          </div>
-                          <div class="ms-4">
-                            <p class="mb-0 text-xs font-weight-bold">
-                              Country:
-                            </p>
-                            <h6 class="mb-0 text-sm">{{ sale.country }}</h6>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <div class="text-center">
-                          <p class="mb-0 text-xs font-weight-bold">Sales:</p>
-                          <h6 class="mb-0 text-sm">{{ sale.sales }}</h6>
-                        </div>
-                      </td>
-                      <td>
-                        <div class="text-center">
-                          <p class="mb-0 text-xs font-weight-bold">Value:</p>
-                          <h6 class="mb-0 text-sm">{{ sale.value }}</h6>
-                        </div>
-                      </td>
-                      <td class="text-sm align-middle">
-                        <div class="text-center col">
-                          <p class="mb-0 text-xs font-weight-bold">Bounce:</p>
-                          <h6 class="mb-0 text-sm">{{ sale.bounce }}</h6>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+
+              <!-- Telephone -->
+              <div class="info-row">
+                <div class="info-label">
+                  <i class="ni ni-mobile-button me-2"></i> TELEPHONE
+                </div>
+                <div class="info-value">{{ formattedTelephone }}</div>
+              </div>    
+
+              <!-- Country -->
+              <div class="info-row">
+                <div class="info-label">
+                  <i class="fas fa-globe me-2"></i>COUNTRY
+                </div>
+                <div class="info-value">{{ currentUser.country || "—" }}</div>
               </div>
             </div>
           </div>
-          <div class="col-lg-5">
-            <categories-list
-              :categories="[
-                {
-                  icon: {
-                    component: 'ni ni-mobile-button',
-                    background: 'dark',
-                  },
-                  label: 'Devices',
-                  description: '250 in stock <strong>346+ sold</strong>',
-                },
-                {
-                  icon: {
-                    component: 'ni ni-tag',
-                    background: 'dark',
-                  },
-                  label: 'Tickets',
-                  description: '123 closed <strong>15 open</strong>',
-                },
-                {
-                  icon: { component: 'ni ni-box-2', background: 'dark' },
-                  label: 'Error logs',
-                  description: '1 is active <strong>40 closed</strong>',
-                },
-                {
-                  icon: { component: 'ni ni-satisfied', background: 'dark' },
-                  label: 'Happy Users',
-                  description: '+ 430',
-                },
-              ]"
-            />
-          </div>
         </div>
+      </div>
+
+      <!-- My Funds Card - Right -->
+      <div class="col-lg-6 col-md-12 mb-4 mb-lg-0">
+        <FundsCard />
+      </div>
+    </div>
+
+    <!-- Second Row: Trading Accounts Card + Document Verification Card -->
+    <div class="row">
+      <!-- Trading Accounts Card - Left -->
+      <div class="col-lg-6 col-md-6 mb-4 mb-lg-0">
+        <TradingAccountCard />
+      </div>
+
+      <!-- Document Verification Card - Right -->
+      <div class="col-lg-6 col-md-6 mb-4 mb-lg-0">
+        <DocumentVerification />
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Dashboard Card - Consistent for all cards */
+.dashboard-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.card-body {
+  flex: 1;
+}
+
+/* User Avatar */
+.user-avatar {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.user-avatar i {
+  font-size: 36px;
+  color: white;
+}
+
+/* User Name */
+.user-name {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+/* User Info Rows */
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+}
+
+.info-label i {
+  color: #1a1a1a;
+  font-size: 14px;
+}
+
+.info-value {
+  font-size: 15px;
+  font-weight: 500;
+  color: #1a1a1a;
+  word-break: break-word;
+}
+
+/* Ensure equal height for all cards in a row */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+  .user-avatar {
+    width: 70px;
+    height: 70px;
+  }
+
+  .user-avatar i {
+    font-size: 32px;
+  }
+
+  .user-name {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .col-lg-6 {
+    margin-bottom: 1.5rem !important;
+  }
+
+  .user-avatar {
+    width: 60px;
+    height: 60px;
+  }
+
+  .user-avatar i {
+    font-size: 28px;
+  }
+
+  .user-name {
+    font-size: 18px;
+  }
+
+  .info-label {
+    font-size: 11px;
+  }
+
+  .info-value {
+    font-size: 14px;
+  }
+}
+</style>

@@ -4,10 +4,9 @@ import ArgonButton from '@/components/ArgonButton.vue';
 import UserDocumentsModal from './components/UserDocumentsModal.vue';
 import { apiGet } from '@/utils/api.js';
 
-// State
 const documents = ref([]);
 const loading = ref(false);
-const activeTab = ref('all'); // all, approved, rejected
+const activeTab = ref('all');
 const showUserModal = ref(false);
 const selectedUser = ref(null);
 const userDocuments = ref([]);
@@ -21,7 +20,6 @@ const pagination = ref({
   total: 0,
 });
 
-// Load documents based on filters
 const loadDocuments = async (page = 1) => {
   loading.value = true;
   currentPage.value = page;
@@ -30,15 +28,12 @@ const loadDocuments = async (page = 1) => {
     const endpoint = '/admin/documents';
     const params = new URLSearchParams();
 
-    // Add status filter based on active tab
     if (activeTab.value === 'approved') {
       params.append('status', 'approved');
     } else if (activeTab.value === 'rejected') {
       params.append('status', 'rejected');
     }
-    // 'all' tab doesn't add status filter
 
-    // Add pagination (fixed at 15)
     params.append('page', page);
     params.append('per_page', 15);
 
@@ -63,7 +58,6 @@ const loadDocuments = async (page = 1) => {
         documentList = data.data;
       }
       
-      // Handle pagination
       if (paginationData) {
         pagination.value = {
           current_page: paginationData.current_page || 1,
@@ -88,25 +82,25 @@ const loadDocuments = async (page = 1) => {
       documentList = data.data;
     }
 
-    documents.value = Array.isArray(documentList) ? documentList : [];
+    documents.value = [...documentList];
   } catch (err) {
-    console.error('GET /admin/documents error:', err);
+    console.error('Failed to load documents:', err);
     documents.value = [];
   } finally {
     loading.value = false;
   }
 };
 
-// Watch for tab changes
 watch(activeTab, () => {
   currentPage.value = 1;
   loadDocuments(1);
 });
 
-// Group documents by user
 const documentsByUser = computed(() => {
   const grouped = {};
-  documents.value.forEach(doc => {
+  if (!Array.isArray(documents.value)) return grouped;
+  
+  documents.value.slice().forEach(doc => {
     const userId = doc.user_id || doc.user?.id;
     if (userId) {
       if (!grouped[userId]) {
@@ -121,9 +115,10 @@ const documentsByUser = computed(() => {
   return grouped;
 });
 
-// Get unique users for table display
 const uniqueUsers = computed(() => {
   const userMap = new Map();
+  if (!Array.isArray(documents.value)) return [];
+  
   documents.value.forEach(doc => {
     const userId = doc.user_id || doc.user?.id;
     if (userId && !userMap.has(userId)) {
@@ -136,7 +131,6 @@ const uniqueUsers = computed(() => {
   return Array.from(userMap.values());
 });
 
-// Get status badges for a user's documents
 const getUserStatusBadges = (userData) => {
   const statuses = ['pending', 'approved', 'rejected'];
   return statuses.filter(status => 
@@ -144,13 +138,18 @@ const getUserStatusBadges = (userData) => {
   );
 };
 
-// Load all documents for a specific user
 const loadUserDocuments = async (userId) => {
   loadingUserDocuments.value = true;
+  userDocuments.value = []; // Clear previous data
+  
   try {
-    // Get all documents for this user (no pagination)
     const response = await apiGet(`/admin/documents?user_id=${userId}&per_page=1000`);
-    const data = await response.json().catch(() => null);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
 
     let documentList = [];
     if (data?.success && data?.data) {
@@ -167,9 +166,16 @@ const loadUserDocuments = async (userId) => {
       documentList = data.data;
     }
 
-    userDocuments.value = Array.isArray(documentList) ? documentList : [];
+    // Safety: some backends may ignore user_id; enforce filtering on frontend
+    const filtered = (Array.isArray(documentList) ? documentList : []).filter((d) => {
+      const docUserId = d?.user_id ?? d?.user?.id ?? null;
+      // eslint-disable-next-line eqeqeq
+      return docUserId != null && docUserId == userId;
+    });
+
+    userDocuments.value = [...filtered];
   } catch (err) {
-    console.error('Error loading user documents:', err);
+    console.error('Failed to load user documents:', err);
     // Fallback to documents from current page
     userDocuments.value = documentsByUser.value[userId]?.documents || [];
   } finally {
@@ -177,21 +183,26 @@ const loadUserDocuments = async (userId) => {
   }
 };
 
-// Handle review user documents
+// FIX: Load data FIRST, then open modal
 const handleReviewUser = async (userData) => {
   selectedUser.value = userData.user;
-  showUserModal.value = true;
   
-  // Load all documents for this user
+  // First load the documents
   await loadUserDocuments(userData.user.id);
+  
+  // Then open modal after data is loaded
+  showUserModal.value = true;
 };
 
-// Handle document updated
-const handleDocumentUpdated = () => {
-  loadDocuments(currentPage.value);
+const handleDocumentUpdated = async () => {
+  console.log('Document updated, reloading table...');
+  await loadDocuments(currentPage.value);
+  
+  if (selectedUser.value) {
+    await loadUserDocuments(selectedUser.value.id);
+  }
 };
 
-// Pagination handlers
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     loadDocuments(page);
@@ -210,7 +221,6 @@ const goToNext = () => {
   }
 };
 
-// Format date
 const formatDate = (dateString) => {
   if (!dateString) return '—';
   try {
@@ -227,12 +237,11 @@ const formatDate = (dateString) => {
   }
 };
 
-// Get status color
 const getStatusColor = (status) => {
   const statusLower = (status || '').toLowerCase();
-  if (statusLower === 'approved') return '#28a745'; // green
-  if (statusLower === 'rejected') return '#dc3545'; // red
-  if (statusLower === 'pending') return '#ffc107'; // yellow
+  if (statusLower === 'approved') return '#28a745';
+  if (statusLower === 'rejected') return '#dc3545';
+  if (statusLower === 'pending') return '#ffc107';
   return '#6c757d';
 };
 
@@ -244,7 +253,6 @@ const getStatusBgColor = (status) => {
   return '#e2e3e5';
 };
 
-
 onMounted(() => {
   loadDocuments();
 });
@@ -254,7 +262,6 @@ onMounted(() => {
   <div class="container-fluid py-4">
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
-        <!-- Header -->
         <div class="d-flex justify-content-between align-items-center mb-4">
           <h4 class="mb-0 text-dark fw-bold">
             <i class="fas fa-id-card me-2"></i>
@@ -262,7 +269,6 @@ onMounted(() => {
           </h4>
         </div>
 
-        <!-- Tabs -->
         <div class="d-flex align-items-center gap-4 border-bottom pb-2 mb-4" style="border-bottom: 1px solid #e9ecef !important;">
           <button
             v-for="tab in [
@@ -288,55 +294,39 @@ onMounted(() => {
           </button>
         </div>
 
-        <!-- Table -->
         <div v-if="loading" class="text-center text-muted py-5">
           <i class="fas fa-spinner fa-spin me-2"></i>
           Loading documents...
         </div>
 
-        <div v-else-if="documents.length === 0" class="text-center text-muted py-5">
+        <div v-else-if="!documents || documents.length === 0" class="text-center text-muted py-5">
           <i class="fas fa-folder-open fa-2x mb-3 opacity-50"></i>
           <p class="mb-0">No documents found.</p>
         </div>
 
         <div v-else class="table-responsive">
-          <table class="table align-items-center mb-0" style="background-color: white;">
+          <table class="table align-items-center mb-0">
             <thead>
               <tr>
-                <th
-                  class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7"
-                  style="padding: 0.75rem;"
-                >
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7" style="padding: 0.75rem;">
                   User Info
                 </th>
-                <th
-                  class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7"
-                  style="padding: 0.75rem;"
-                >
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7" style="padding: 0.75rem;">
                   Documents Count
                 </th>
-                <th
-                  class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7"
-                  style="padding: 0.75rem;"
-                >
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7" style="padding: 0.75rem;">
                   Status Summary
                 </th>
-                <th
-                  class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7"
-                  style="padding: 0.75rem;"
-                >
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7" style="padding: 0.75rem;">
                   Last Submitted
                 </th>
-                <th
-                  class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-end"
-                  style="padding: 0.75rem;"
-                >
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-end" style="padding: 0.75rem;">
                   Action
                 </th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="userData in uniqueUsers" :key="userData.user.id">
+              <tr v-for="userData in uniqueUsers" :key="`user-${userData.user.id}-${documents.length}`">
                 <td style="padding: 0.75rem;">
                   <div class="d-flex flex-column">
                     <span class="text-sm text-dark fw-bold mb-1">{{ userData.user?.name || '—' }}</span>
@@ -345,7 +335,7 @@ onMounted(() => {
                   </div>
                 </td>
                 <td class="text-sm text-dark" style="padding: 0.75rem;">
-                  {{ userData.documents.length }} document(s)
+                  {{ userData.documents?.length || 0 }} document(s)
                 </td>
                 <td style="padding: 0.75rem;">
                   <div class="d-flex flex-wrap gap-1">
@@ -385,9 +375,8 @@ onMounted(() => {
           </table>
         </div>
 
-        <!-- Pagination -->
         <div
-          v-if="!loading && documents.length > 0"
+          v-if="!loading && documents && documents.length > 0"
           class="d-flex justify-content-between align-items-center mt-4"
         >
           <div class="text-sm text-muted">
@@ -426,7 +415,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- User Documents Modal -->
     <UserDocumentsModal
       v-model:show="showUserModal"
       :user="selectedUser"
@@ -457,15 +445,17 @@ onMounted(() => {
 
 .table {
   margin-bottom: 0;
+  background-color: transparent;
 }
 
 .table thead th {
   border-bottom: 1px solid #e9ecef;
-  background-color: white;
+  background-color: transparent;
 }
 
 .table tbody tr {
   border-bottom: 1px solid #f0f0f0;
+  background-color: transparent;
 }
 
 .table tbody tr:last-child {
@@ -473,7 +463,7 @@ onMounted(() => {
 }
 
 .table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 .badge-sm {

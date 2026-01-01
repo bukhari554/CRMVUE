@@ -7,6 +7,7 @@ import ArgonInput from "@/components/ArgonInput.vue";
 import ArgonSwitch from "@/components/ArgonSwitch.vue";
 import ArgonButton from "@/components/ArgonButton.vue";
 import { APP_CONFIG } from "@/Data/appConfig.js";
+import { showToast } from "@/utils/toast.js";
 
 const body = document.getElementsByTagName("body")[0];
 const store = useStore();
@@ -18,6 +19,11 @@ const rememberMe = ref(false);
 const loading = ref(false);
 const message = ref("");
 const messageType = ref("");
+const showPassword = ref(false); // ✅ Password visibility toggle
+
+const togglePasswordVisibility = () => {
+  showPassword.value = !showPassword.value;
+};
 
 onBeforeMount(() => {
   console.log('🔍 Admin Signin - Checking auth status...');
@@ -99,8 +105,6 @@ const handleLogin = async () => {
     if (response.ok && data?.success) {
       console.log('✅ Admin login successful!');
       
-      // Extract data from admin login response
-      // Response: { success: true, data: { admin: {...}, token: "..." } }
       const token = data?.data?.token;
       const adminData = data?.data?.admin;
       
@@ -111,20 +115,17 @@ const handleLogin = async () => {
         adminEmail: adminData?.email
       });
       
-      // Verify we have required data
       if (!token || !adminData) {
         console.error('❌ Missing token or admin data');
         message.value = "Login failed. Incomplete data received.";
         messageType.value = "error";
+        showToast("Login failed. Incomplete data received.", 'error');
         return;
       }
       
-      // ⚠️ IMPORTANT: Since this is ADMIN LOGIN endpoint,
-      // we ALWAYS set role as 'admin' (hardcoded)
-      // This ensures only admins can access admin routes
       const user = {
         ...adminData,
-        role: 'admin'  // ✅ Hardcoded because /admin/login only for admins
+        role: 'admin'
       };
       
       console.log('✅ User object created with admin role:', {
@@ -133,15 +134,14 @@ const handleLogin = async () => {
         role: user.role
       });
       
-      // Store authentication in Vuex
       store.dispatch("login", { token, user, apiKey: null });
       
       message.value = "Login successful! Redirecting to admin dashboard...";
       messageType.value = "success";
+      showToast("Login successful! Redirecting to admin dashboard...", 'success');
       
       console.log('💾 Admin auth saved to Vuex and localStorage');
       
-      // Redirect to admin dashboard
       setTimeout(() => {
         console.log('🔄 Redirecting to /admin/dashboard...');
         router.push("/admin/dashboard");
@@ -150,16 +150,23 @@ const handleLogin = async () => {
     } else {
       console.log('❌ Admin login failed');
       
-      const errorText = data?.message || 
-        (response.status === 401 ? "Invalid admin credentials." : "Login failed.");
+      let errorText = data?.message || (response.status === 401 ? "Invalid admin credentials." : "Login failed.");
+      
+      if (data?.errors) {
+        const firstError = Object.values(data.errors)[0];
+        errorText = Array.isArray(firstError) ? firstError[0] : firstError;
+      }
       
       message.value = errorText;
       messageType.value = "error";
+      showToast(errorText, 'error');
     }
   } catch (error) {
     console.error('❌ Admin login error:', error);
-    message.value = "Unable to reach the server. Please check your connection.";
+    const errorMessage = "Unable to reach the server. Please check your connection.";
+    message.value = errorMessage;
     messageType.value = "error";
+    showToast(errorMessage, 'error');
   } finally {
     loading.value = false;
   }
@@ -178,7 +185,7 @@ const handleLogin = async () => {
       </div>
     </div>
   </div>
-  <main class="mt-0 main-content">
+  <main class="mt-0 main-content" style="padding-top: 100px;">
     <section>
       <div class="page-header min-vh-100">
         <div class="container">
@@ -214,16 +221,27 @@ const handleLogin = async () => {
                         v-model="email"
                       />
                     </div>
-                    <div class="mb-3">
+                    
+                    <!-- ✅ Password Field with Eye Toggle -->
+                    <div class="mb-3 position-relative">
                       <argon-input
                         id="password"
-                        type="password"
+                        :type="showPassword ? 'text' : 'password'"
                         placeholder="Admin Password"
                         name="password"
                         size="lg"
                         v-model="password"
                       />
+                      <button
+                        type="button"
+                        @click="togglePasswordVisibility"
+                        class="password-toggle-btn"
+                        tabindex="-1"
+                      >
+                        <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                      </button>
                     </div>
+                    
                     <argon-switch
                       id="rememberMe"
                       name="remember-me"
@@ -262,7 +280,7 @@ const handleLogin = async () => {
               <div
                 class="position-relative bg-gradient-primary h-100 m-3 px-7 border-radius-lg d-flex flex-column justify-content-center overflow-hidden"
                 style="
-                  background-image: url(&quot;https://raw.githubusercontent.com/creativetimofficial/public-assets/master/argon-dashboard-pro/assets/img/signin-ill.jpg&quot;);
+                  background-image: url(&quot;https://digiprimefx.com/wp-content/uploads/2024/04/h4-bg-img-1-e1763652944825.png&quot;);
                   background-size: cover;
                 "
               >
@@ -270,11 +288,10 @@ const handleLogin = async () => {
                 <h4
                   class="mt-5 text-white font-weight-bolder position-relative"
                 >
-                  "Admin Access Only"
+                  "Elevate Your Trading Experience with DIGIPRIME FX"
                 </h4>
                 <p class="text-white position-relative">
-                  This is the admin portal. Please ensure you have the proper
-                  credentials before attempting to sign in.
+                  Trade with one of the fastest-growing forex brokers in the GCC — where powerful platforms, lower costs, and advanced tools come standard.
                 </p>
               </div>
             </div>
@@ -284,3 +301,31 @@ const handleLogin = async () => {
     </section>
   </main>
 </template>
+
+<style scoped>
+.password-toggle-btn {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #67748e;
+  padding: 8px;
+  z-index: 10;
+  transition: color 0.2s ease;
+}
+
+.password-toggle-btn:hover {
+  color: #344767;
+}
+
+.password-toggle-btn:focus {
+  outline: none;
+}
+
+.password-toggle-btn i {
+  font-size: 16px;
+}
+</style>

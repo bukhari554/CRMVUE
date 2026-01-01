@@ -123,27 +123,24 @@ const closeModal = () => {
 </script>
 
 <template>
-  <div
-    v-if="show"
-    class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-    style="background-color: rgba(0, 0, 0, 0.5); z-index: 1050;"
-    @click.self="closeModal"
-  >
-    <div class="bg-white rounded-3 shadow-lg" style="width: 90%; max-width: 500px;">
-      <div class="p-4 border-bottom">
-        <div class="d-flex justify-content-between align-items-center">
-          <h5 class="mb-0 fw-bold">Create New Ticket</h5>
-          <button
-            type="button"
-            class="btn btn-sm btn-link text-dark p-0"
-            @click="closeModal"
-          >
-            <i class="fas fa-times"></i>
+  <Teleport to="body">
+    <Transition name="modal">
+      <div
+        v-if="show"
+        class="modal-overlay"
+        @click.self="closeModal"
+      >
+        <div class="modal-container modal-sm-container" @click.stop>
+          <button class="modal-close" @click="closeModal">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
           </button>
-        </div>
-      </div>
-
-      <div class="p-4">
+          <div class="modal-header-content">
+            <h5 class="mb-0 fw-bold">Create New Ticket</h5>
+          </div>
+          <div class="modal-body-content">
         <div
           v-if="errorMessage"
           class="mb-3 rounded p-3 text-center text-white fw-bold"
@@ -210,8 +207,102 @@ const closeModal = () => {
             {{ submitting ? 'Submitting...' : 'Submit Ticket' }}
           </ArgonButton>
         </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
+      </Transition>
+    </Teleport>
 </template>
+
+<style scoped>
+/* Modal Styles - Matching FundsCard design */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.modal-container {
+  background: white;
+  border-radius: 16px;
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+  padding: 32px;
+}
+
+.modal-sm-container {
+  max-width: 500px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #f5f5f5;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.modal-close:hover {
+  background-color: #e5e5e5;
+  transform: rotate(90deg);
+}
+
+.modal-close svg {
+  width: 20px;
+  height: 20px;
+  color: #333;
+}
+
+.modal-header-content {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.modal-body-content {
+  padding: 0;
+}
+
+/* Modal Animations */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-enter-active .modal-container,
+.modal-leave-active .modal-container {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-from .modal-container,
+.modal-leave-to .modal-container {
+  transform: scale(0.8) translateY(20px);
+}
+</style>
 

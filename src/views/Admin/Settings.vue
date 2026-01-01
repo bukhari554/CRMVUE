@@ -3,7 +3,7 @@ import { ref, onBeforeMount, onBeforeUnmount } from "vue";
 import { useStore } from "vuex";
 import ArgonButton from "@/components/ArgonButton.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
-import { apiGet, apiPut } from "@/utils/api.js";
+import { apiGet, apiPost, apiPut } from "@/utils/api.js";
 
 const body = document.getElementsByTagName("body")[0];
 const store = useStore();
@@ -35,6 +35,12 @@ const appForm = ref({
 const appLoading = ref(false);
 const appMessage = ref("");
 const appType = ref("");
+const lightLogoFile = ref(null);
+const darkLogoFile = ref(null);
+const lightLogoUrl = ref(null);
+const darkLogoUrl = ref(null);
+const originalLightLogoUrl = ref(null);
+const originalDarkLogoUrl = ref(null);
 
 // Load MT5 Settings
 const loadMt5Settings = async () => {
@@ -73,6 +79,11 @@ const loadAppSettings = async () => {
         contact_number: data.data.setting.contact_number || "",
         api_base_url: data.data.setting.api_base_url || "",
       };
+      // Store logo URLs for display
+      lightLogoUrl.value = data.data.setting.light_logo_url || null;
+      darkLogoUrl.value = data.data.setting.dark_logo_url || null;
+      originalLightLogoUrl.value = data.data.setting.light_logo_url || null;
+      originalDarkLogoUrl.value = data.data.setting.dark_logo_url || null;
       return true;
     }
     return false;
@@ -135,6 +146,84 @@ const handleUpdateMt5 = async () => {
   }
 };
 
+// Handle logo file selection
+const handleLightLogoSelect = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    // Validate file type (matching backend: jpeg, jpg, png, svg, webp)
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      appMessage.value = "Please select a valid image file (JPEG, JPG, PNG, SVG, or WEBP) for light logo.";
+      appType.value = "error";
+      event.target.value = '';
+      return;
+    }
+    
+    // Validate file size (max 2048KB = 2MB, matching backend)
+    const maxSize = 2048 * 1024; // 2MB in bytes
+    if (file.size > maxSize) {
+      appMessage.value = "Light logo file size must be less than 2MB.";
+      appType.value = "error";
+      event.target.value = '';
+      return;
+    }
+    
+    lightLogoFile.value = file;
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      lightLogoUrl.value = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+};
+
+const handleDarkLogoSelect = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    // Validate file type (matching backend: jpeg, jpg, png, svg, webp)
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      appMessage.value = "Please select a valid image file (JPEG, JPG, PNG, SVG, or WEBP) for dark logo.";
+      appType.value = "error";
+      event.target.value = '';
+      return;
+    }
+    
+    // Validate file size (max 2048KB = 2MB, matching backend)
+    const maxSize = 2048 * 1024; // 2MB in bytes
+    if (file.size > maxSize) {
+      appMessage.value = "Dark logo file size must be less than 2MB.";
+      appType.value = "error";
+      event.target.value = '';
+      return;
+    }
+    
+    darkLogoFile.value = file;
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      darkLogoUrl.value = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+};
+
+// Remove logo
+const removeLightLogo = () => {
+  lightLogoFile.value = null;
+  lightLogoUrl.value = originalLightLogoUrl.value;
+  const input = document.getElementById('light-logo-input');
+  if (input) input.value = '';
+};
+
+const removeDarkLogo = () => {
+  darkLogoFile.value = null;
+  darkLogoUrl.value = originalDarkLogoUrl.value;
+  const input = document.getElementById('dark-logo-input');
+  if (input) input.value = '';
+};
+
 // Update App Settings
 const handleUpdateApp = async () => {
   appMessage.value = "";
@@ -150,22 +239,74 @@ const handleUpdateApp = async () => {
   
   appLoading.value = true;
   try {
-    const response = await apiPut("/admin/app-settings", {
-      app_name: appForm.value.app_name,
-      crm_url: appForm.value.crm_url,
-      front_end_url: appForm.value.front_end_url,
-      contact_email: appForm.value.contact_email,
-      contact_number: appForm.value.contact_number,
-      api_base_url: appForm.value.api_base_url,
-    });
+    // Check if we have files to upload
+    const hasFiles = lightLogoFile.value || darkLogoFile.value;
+    
+    let requestData;
+    if (hasFiles) {
+      // Use FormData (multipart/form-data) when files are present
+      requestData = new FormData();
+      requestData.append('app_name', appForm.value.app_name);
+      requestData.append('crm_url', appForm.value.crm_url);
+      requestData.append('front_end_url', appForm.value.front_end_url);
+      requestData.append('contact_email', appForm.value.contact_email);
+      requestData.append('contact_number', appForm.value.contact_number);
+      requestData.append('api_base_url', appForm.value.api_base_url);
+      
+      // Append logo files if selected
+      if (lightLogoFile.value) {
+        requestData.append('light_logo', lightLogoFile.value);
+      }
+      if (darkLogoFile.value) {
+        requestData.append('dark_logo', darkLogoFile.value);
+      }
+    } else {
+      // Use JSON (application/json) for text-only updates (more efficient)
+      requestData = {
+        app_name: appForm.value.app_name,
+        crm_url: appForm.value.crm_url,
+        front_end_url: appForm.value.front_end_url,
+        contact_email: appForm.value.contact_email,
+        contact_number: appForm.value.contact_number,
+        api_base_url: appForm.value.api_base_url,
+      };
+    }
+    
+    const response = await apiPost("/admin/app-settings/update", requestData);
     
     const data = await response.json().catch(() => null);
     
     if (response.ok && data?.success) {
       appMessage.value = data.message || "App settings updated successfully.";
       appType.value = "success";
+      
+      // Update logo URLs from response data (as per API docs: data.setting structure)
+      if (data.data && data.data.setting) {
+        if (data.data.setting.light_logo_url) {
+          lightLogoUrl.value = data.data.setting.light_logo_url;
+          originalLightLogoUrl.value = data.data.setting.light_logo_url;
+        }
+        if (data.data.setting.dark_logo_url) {
+          darkLogoUrl.value = data.data.setting.dark_logo_url;
+          originalDarkLogoUrl.value = data.data.setting.dark_logo_url;
+        }
+      }
+      
+      // Reset file inputs after successful update
+      lightLogoFile.value = null;
+      darkLogoFile.value = null;
+      const lightInput = document.getElementById('light-logo-input');
+      if (lightInput) lightInput.value = '';
+      const darkInput = document.getElementById('dark-logo-input');
+      if (darkInput) darkInput.value = '';
     } else {
-      appMessage.value = data?.message || "Unable to update app settings.";
+      // Handle validation errors (422)
+      if (response.status === 422 && data?.errors) {
+        const errorMessages = Object.values(data.errors).flat().join(', ');
+        appMessage.value = errorMessages || data?.message || "Validation error occurred.";
+      } else {
+        appMessage.value = data?.message || "Unable to update app settings.";
+      }
       appType.value = "error";
     }
   } catch (error) {
@@ -373,6 +514,62 @@ onBeforeUnmount(() => {
                     class="form-control"
                     placeholder="API Base URL"
                   />
+                </div>
+
+                <!-- Light Logo -->
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Light Logo</label>
+                  <div v-if="lightLogoUrl" class="mb-2">
+                    <img 
+                      :src="lightLogoUrl" 
+                      alt="Light Logo" 
+                      class="img-thumbnail"
+                      style="max-width: 200px; max-height: 100px; object-fit: contain;"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-danger ms-2"
+                      @click="removeLightLogo"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <input
+                    id="light-logo-input"
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/svg+xml,image/webp"
+                    class="form-control"
+                    @change="handleLightLogoSelect"
+                  />
+                  <small class="text-muted">Upload a logo for light theme (JPEG, JPG, PNG, SVG, or WEBP, max 2MB)</small>
+                </div>
+
+                <!-- Dark Logo -->
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Dark Logo</label>
+                  <div v-if="darkLogoUrl" class="mb-2">
+                    <img 
+                      :src="darkLogoUrl" 
+                      alt="Dark Logo" 
+                      class="img-thumbnail"
+                      style="max-width: 200px; max-height: 100px; object-fit: contain;"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-danger ms-2"
+                      @click="removeDarkLogo"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <input
+                    id="dark-logo-input"
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/svg+xml,image/webp"
+                    class="form-control"
+                    @change="handleDarkLogoSelect"
+                  />
+                  <small class="text-muted">Upload a logo for dark theme (JPEG, JPG, PNG, SVG, or WEBP, max 2MB)</small>
                 </div>
               </div>
 

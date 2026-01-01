@@ -392,7 +392,7 @@ onMounted(() => {
 
 .card {
   background-color: white;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
 }
 
 .table {

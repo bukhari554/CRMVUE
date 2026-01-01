@@ -4,7 +4,7 @@ import { useStore } from "vuex";
 import ArgonButton from "@/components/ArgonButton.vue";
 import { apiPost } from "@/utils/api.js";
 import ClientDetailsForm from "./components/ClientDetailsForm.vue";
-import DocumentVerification from "./components/DocumentVerification.vue";
+///import DocumentVerification from "./components/DocumentVerification.vue";
 
 const body = document.getElementsByTagName("body")[0];
 const store = useStore();
@@ -263,14 +263,11 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- SECOND ROW -->
-    <div class="row">
-      <div class="col-lg-8 mb-4">
-        <ClientDetailsForm class="card-min-height" />
-      </div>
-      <div class="col-lg-4 mb-4">
-        <DocumentVerification class="card-min-height" />
-      </div>
-    </div>
+<div class="row">
+  <div class="col-12 mb-4">
+    <ClientDetailsForm class="card-min-height" />
+  </div>
+</div>
   </main>
 </template>
 

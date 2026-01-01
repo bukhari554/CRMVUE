@@ -1,11 +1,14 @@
 <script setup>
 import { computed } from 'vue';
 import { useStore } from 'vuex';
+import { useRoute, useRouter } from 'vue-router';
 import { APP_CONFIG } from '@/Data/appConfig.js'; 
 import UserNavbar from "@/views/User/components/UserNavbar.vue";
-import WalletBalance from "@/views/User/components/WalletBalance.vue";
+import Balance from "@/views/User/components/Balance.vue";
 
 const store = useStore();
+const route = useRoute();
+const router = useRouter();
 
 const logoUrl = computed(() => {
   const isDark = store.state.darkMode;
@@ -16,6 +19,16 @@ const logoUrl = computed(() => {
   
   return isDark ? APP_CONFIG.companyLogoDark : APP_CONFIG.companyLogoLight;
 });
+
+// Check if current route is user route
+const isUserRoute = computed(() => {
+  return route.path.startsWith('/user');
+});
+
+// Handle deposit button click - redirect to wallet deposit page
+const handleDepositClick = () => {
+  router.push('/user/wallet?tab=deposit');
+};
 </script>
 
 <template>
@@ -29,18 +42,19 @@ const logoUrl = computed(() => {
             class="company-logo"
           />
         </div>
-        
+       <div class="spacer"></div> 
         <div class="button-group">
-          <WalletBalance />
+          <!-- Only show wallet on user routes -->
+          <Balance v-if="isUserRoute" />
           
-          <button class="deposit-button"> 
+          <button v-if="isUserRoute" class="deposit-button" @click="handleDepositClick"> 
             Deposit
           </button>
         </div>
       </div>
       
       <div class="navbar-section">
-        <UserNavbar/>
+        <UserNavbar />
       </div>
     </header>
   </div>
@@ -70,7 +84,7 @@ const logoUrl = computed(() => {
 }
 
 .company-logo {
-  height: 100px;
+  height: 85px;
   width: auto;
   object-fit: contain;
 }
@@ -81,7 +95,7 @@ const logoUrl = computed(() => {
   right: 1rem;
   display: flex;
   align-items: center;
-
+  gap: 0.75rem;
 }
 
 .deposit-button {
@@ -107,5 +121,28 @@ const logoUrl = computed(() => {
   padding-left: 1rem;
   padding-right: 1rem;
   padding-bottom: 1rem;
+}
+
+/* Mobile: Make buttons smaller, keep logo unchanged */
+@media (max-width: 991px) {
+  .deposit-button {
+    padding: 0.5rem 1.25rem;
+    font-size: 0.875rem;
+  }
+
+  .button-group {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .deposit-button {
+    padding: 0.4rem 1rem;
+    font-size: 0.8125rem;
+  }
+
+  .button-group {
+    gap: 0.4rem;
+  }
 }
 </style>

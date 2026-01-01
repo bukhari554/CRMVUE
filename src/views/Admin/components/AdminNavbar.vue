@@ -3,6 +3,7 @@ import { computed, ref, onMounted, onUnmounted } from "vue";
 import { useStore } from "vuex";
 import { useRoute, useRouter } from "vue-router";
 import { apiPost, apiGet, apiPatch } from "@/utils/api.js";
+import ArgonButton from "@/components/ArgonButton.vue";
 
 const showMenu = ref(false);
 const showUserMenu = ref(false);
@@ -16,6 +17,7 @@ const notifications = ref([]);
 const loadingNotifications = ref(false);
 const showNotifications = ref(false);
 const notificationError = ref("");
+const lastNotificationsFetchAt = ref(0);
 
 const unreadCount = computed(() => {
   return notifications.value.filter(n => !n.read_at).length;
@@ -37,11 +39,10 @@ const adminPages = [
   { name: 'Clients', path: '/admin/clients', icon: 'fa-users', routeName: 'Clients' },
   { name: 'Deposit', path: '/admin/Deposit', icon: 'fa-money-bill-wave', routeName: 'Deposit' },
   { name: 'Withdrawal', path: '/admin/withdrawl', icon: 'fa-credit-card', routeName: 'Withdrawl' },
+  { name: 'Payment Methods', path: '/admin/payment-methods', icon: 'fa-wallet', routeName: 'PaymentMethods' },
   { name: 'KYC Request', path: '/admin/kycrequest', icon: 'fa-id-card', routeName: 'KYCRequest' },
-  { name: 'Client Alerts', path: '/admin/clientalerts', icon: 'fa-exclamation-triangle', routeName: 'ClientAlerts' },
   { name: 'Tickets', path: '/admin/admintickets', icon: 'fa-ticket-alt', routeName: 'AdminTickets' },
-  { name: 'IB Portal', path: '/admin/ibportal', icon: 'fa-door-open', routeName: 'IBPortal' },
-  { name: 'Sub Admin', path: '/admin/subadmin', icon: 'fa-user-shield', routeName: 'SubAdmin' },
+  { name: 'Account Types', path: '/admin/account-types', icon: 'fa-credit-card', routeName: 'AccountTypes' },
   { name: 'Settings', path: '/admin/settings', icon: 'fa-cog', routeName: 'AdminSettings' },
 ];
 
@@ -95,6 +96,9 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
+  // Prefetch so unread badge count appears immediately on navbar load
+  // (doesn't open the modal; only loads data)
+  ensureNotificationsLoaded();
 });
 
 onUnmounted(() => {
@@ -120,6 +124,8 @@ const loadNotifications = async () => {
     } else {
       notifications.value = [];
     }
+
+    lastNotificationsFetchAt.value = Date.now();
   } catch (error) {
     console.error("Error loading notifications:", error);
     notificationError.value = "Failed to load notifications";
@@ -129,13 +135,20 @@ const loadNotifications = async () => {
   }
 };
 
+const ensureNotificationsLoaded = async ({ force = false } = {}) => {
+  const STALE_MS = 30_000;
+  const isStale = !lastNotificationsFetchAt.value || (Date.now() - lastNotificationsFetchAt.value) > STALE_MS;
+  if (force || isStale) {
+    await loadNotifications();
+  }
+};
+
 const toggleNotifications = (event) => {
   event?.stopPropagation();
   showNotifications.value = !showNotifications.value;
   showMenu.value = false; // Close other dropdown
   if (showNotifications.value && !loadingNotifications.value) {
-    // Always reload notifications when opening to get latest updates
-    loadNotifications();
+    ensureNotificationsLoaded();
   }
 };
 
@@ -160,13 +173,13 @@ const markAllRead = async () => {
 };
 
 const markOneRead = async (notification) => {
-  if (notification.read_at) return;
-  
-  // Optimistically update
+  // Always hit the read API on click (even if already read),
+  // but only optimistically update if unread.
+  const wasRead = !!notification.read_at;
   const originalReadAt = notification.read_at;
   const notificationIndex = notifications.value.findIndex(n => n.id === notification.id);
   
-  if (notificationIndex !== -1) {
+  if (!wasRead && notificationIndex !== -1) {
     notifications.value[notificationIndex] = {
       ...notifications.value[notificationIndex],
       read_at: new Date().toISOString()
@@ -174,12 +187,14 @@ const markOneRead = async (notification) => {
   }
   
   try {
-    const response = await apiPatch(`/admin/notifications/${notification.id}/read`, {});
+    // Use id from notification, fallback to index if id is not available
+    const notificationId = notification.id || notificationIndex;
+    const response = await apiPatch(`/admin/notifications/${notificationId}/read`, {});
     const data = await response.json();
     
     if (!data.success && !response.ok) {
       // Revert on error
-      if (notificationIndex !== -1) {
+      if (!wasRead && notificationIndex !== -1) {
         notifications.value[notificationIndex] = {
           ...notifications.value[notificationIndex],
           read_at: originalReadAt
@@ -189,7 +204,7 @@ const markOneRead = async (notification) => {
   } catch (error) {
     console.error("Error marking notification as read:", error);
     // Revert on error
-    if (notificationIndex !== -1) {
+    if (!wasRead && notificationIndex !== -1) {
       notifications.value[notificationIndex] = {
         ...notifications.value[notificationIndex],
         read_at: originalReadAt
@@ -198,11 +213,142 @@ const markOneRead = async (notification) => {
   }
 };
 
+// Get notification title - use Name from API response
+const getNotificationTitle = (notification) => {
+  // Use Name from the new API structure
+  if (notification?.Name) return notification.Name;
+  
+  // Fallback for older structure
+  return notification?.title || notification?.subject || "Notification";
+};
+
+// Get notification message - use message from API response
+const getNotificationMessage = (notification) => {
+  // Use message from the new API structure
+  if (notification?.message) return notification.message;
+  
+  // Fallback for older structure
+  return notification?.body || "";
+};
+
+// Get notification date - parse from date field
+const getNotificationCreatedAt = (notification) => {
+  // New API structure has date field with format: "Submitted: 2025-12-18 14:23:23\nDate & Time: 2025-12-18 14:23:30"
+  if (notification?.date) {
+    // Extract the "Date & Time" part if available, otherwise use the first date
+    const dateMatch = notification.date.match(/Date & Time:\s*([^\n]+)/);
+    if (dateMatch) {
+      return dateMatch[1].trim();
+    }
+    // Try to extract first date
+    const firstDateMatch = notification.date.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
+    if (firstDateMatch) {
+      return firstDateMatch[1];
+    }
+    return notification.date;
+  }
+  
+  // Fallback for older structure
+  return notification?.data?.created_at || notification?.created_at || null;
+};
+
+// Get notification redirect based on type
+const getNotificationRedirect = (notification) => {
+  const type = notification?.type || "";
+  const typeLower = type.toLowerCase();
+  const title = getNotificationTitle(notification) || "";
+  const titleLower = title.toLowerCase();
+  const message = getNotificationMessage(notification) || "";
+  const messageLower = message.toLowerCase();
+  
+  // Ticket/Support related notifications - check type, title, and message
+  if (typeLower.includes("ticket") || 
+      titleLower.includes("ticket") || 
+      titleLower.includes("reply") ||
+      messageLower.includes("ticket") ||
+      messageLower.includes("subject:")) {
+    return "/admin/admintickets";
+  }
+  
+  // KYC/Document related notifications - check type, title, and message
+  if (typeLower.includes("kyc") || 
+      typeLower === "document_status_updated" ||
+      typeLower.includes("document") ||
+      titleLower.includes("document") ||
+      titleLower.includes("kyc") ||
+      messageLower.includes("document") ||
+      messageLower.includes("driver license") ||
+      messageLower.includes("bank statement") ||
+      messageLower.includes("passport") ||
+      messageLower.includes("id card")) {
+    return "/admin/kycrequest";
+  }
+  
+  // Deposit related notifications
+  if (typeLower.includes("deposit") || 
+      titleLower.includes("deposit") ||
+      messageLower.includes("deposit")) {
+    return "/admin/Deposit";
+  }
+  
+  // Withdrawal notifications
+  if (typeLower.includes("withdrawal") ||
+      titleLower.includes("withdrawal") ||
+      messageLower.includes("withdrawal")) {
+    return "/admin/withdrawl";
+  }
+  
+  // Transfer notifications
+  if (typeLower === "transfer_completed" ||
+      titleLower.includes("transfer") ||
+      messageLower.includes("transfer")) {
+    return "/admin/clients";
+  }
+  
+  // Trading account notifications
+  if (typeLower === "trading_account_created" ||
+      titleLower.includes("trading account") ||
+      messageLower.includes("trading account")) {
+    return "/admin/clients";
+  }
+  
+  // Transaction notifications
+  if (typeLower === "transaction_approved" ||
+      titleLower.includes("transaction") ||
+      messageLower.includes("transaction")) {
+    return "/admin/Deposit";
+  }
+  
+  return null;
+};
+
+const handleNotificationClick = async (notification) => {
+  await markOneRead(notification);
+  const redirectTo = getNotificationRedirect(notification);
+  showNotifications.value = false;
+  if (redirectTo) {
+    router.push(redirectTo).catch(() => {});
+  }
+};
+
 const formatTime = (dateString) => {
   if (!dateString) return "Unknown";
   
   try {
-    const date = new Date(dateString);
+    // Handle the new date format: "2025-12-18 14:23:30"
+    let date;
+    if (typeof dateString === 'string' && dateString.includes(':')) {
+      // Try parsing as "YYYY-MM-DD HH:mm:ss"
+      date = new Date(dateString.replace(' ', 'T'));
+    } else {
+      date = new Date(dateString);
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return dateString; // Return original string if parsing fails
+    }
+    
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);
@@ -216,7 +362,7 @@ const formatTime = (dateString) => {
     
     return date.toLocaleDateString();
   } catch (error) {
-    return "Unknown";
+    return dateString || "Unknown";
   }
 };
 
@@ -267,7 +413,7 @@ const handleLogout = async (event) => {
 
 <template>
   <nav class="navbar navbar-main navbar-expand-lg shadow-none border-radius-xl bg-white">
-    <div class="px-3 py-1 container-fluid d-flex align-items-center">
+    <div class="px-3 py-1 container-fluid d-flex align-items-center" style="background-color: #ffffff !important;">
       <!-- Left Side: Breadcrumbs and Admin Pages Navigation Menu -->
       <div class="d-flex align-items-center w-100">
         <breadcrumbs
@@ -360,8 +506,10 @@ const handleLogout = async (event) => {
                 <span
                   v-if="unreadCount > 0"
                   class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                  style="font-size: 0.5rem; padding: 0.2rem 0.3rem; min-width: 0.6rem; height: 0.6rem;"
-                ></span>
+                  style="font-size: 0.65rem; padding: 0.2rem 0.35rem; min-width: 1.1rem; height: 1.1rem; display: inline-flex; align-items: center; justify-content: center; line-height: 1;"
+                >
+                  {{ unreadCount > 99 ? '99+' : unreadCount }}
+                </span>
               </a>
             </div>
           </li>
@@ -424,60 +572,61 @@ const handleLogout = async (event) => {
   </div>
 
   <!-- Notification Modal Popup -->
-  <div
-    v-if="showNotifications"
-    class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-    style="background-color: rgba(0, 0, 0, 0.5); z-index: 1050;"
-    @click.self="showNotifications = false"
-  >
-    <div
-      id="notificationDropdown"
-      class="bg-white rounded-3 shadow-lg"
-      style="width: 90%; max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;"
-      @click.stop
-    >
-      <!-- Header -->
-      <div class="p-4 border-bottom">
-        <div class="d-flex justify-content-between align-items-center">
-          <h4 class="mb-0 fw-bold d-flex align-items-center">
-            <i class="fa fa-bell me-2"></i>
-            Notifications
-            <span
-              v-if="unreadCount > 0"
-              class="badge bg-danger ms-2"
-            >
-              {{ unreadCount }} unread
-            </span>
-          </h4>
-          <div class="d-flex align-items-center gap-2">
-            <button
-              v-if="unreadCount > 0"
-              @click.prevent="markAllRead"
-              class="btn btn-sm btn-primary"
-            >
-              Mark all read
-            </button>
-            <button
-              type="button"
-              class="btn btn-sm btn-link text-dark p-0"
-              @click="showNotifications = false"
-            >
-              <i class="fas fa-times" style="font-size: 1.2rem;"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Error Message -->
+  <Teleport to="body">
+    <Transition name="modal">
       <div
-        v-if="notificationError"
-        class="alert alert-danger mx-4 mt-3 mb-0"
+        v-if="showNotifications"
+        class="notification-overlay"
+        @click.self="showNotifications = false"
       >
-        {{ notificationError }}
-      </div>
+        <div
+          id="notificationDropdown"
+          class="notification-panel"
+          @click.stop
+        >
+          <button class="modal-close" @click="showNotifications = false">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          
+          <!-- Header -->
+          <div class="modal-header-content">
+            <h5 class="modal-title text-dark fw-bold">
+              <i class="fa fa-bell me-2"></i>
+              Notifications
+            </h5>
+            <div class="notification-actions d-flex align-items-center gap-2 mt-3">
+              <span
+                v-if="unreadCount > 0"
+                class="badge bg-danger"
+              >
+                {{ unreadCount }} UNREAD
+              </span>
+              <ArgonButton
+                v-if="unreadCount > 0"
+                @click.prevent="markAllRead"
+                color="primary"
+                variant="gradient"
+                size="sm"
+                type="button"
+              >
+                Mark all read
+              </ArgonButton>
+            </div>
+          </div>
 
-      <!-- Content -->
-      <div class="flex-grow-1 overflow-auto px-4 py-3" style="max-height: calc(80vh - 120px);">
+          <!-- Error Message -->
+          <div
+            v-if="notificationError"
+            class="alert alert-danger mx-0 mt-0 mb-3"
+          >
+            {{ notificationError }}
+          </div>
+
+          <!-- Content -->
+          <div class="modal-body-content">
         <div v-if="loadingNotifications" class="text-center text-secondary py-5">
           <div class="spinner-border text-primary mb-3" role="status">
             <span class="visually-hidden">Loading...</span>
@@ -490,12 +639,12 @@ const handleLogout = async (event) => {
         </div>
         <div v-else>
           <div
-            v-for="notification in notifications"
-            :key="notification.id"
+            v-for="(notification, index) in notifications"
+            :key="notification.id || index"
             class="mb-3 p-3 border rounded"
             :class="{ 'bg-light border-primary': !notification.read_at, 'border-secondary': notification.read_at }"
             style="cursor: pointer; transition: all 0.2s;"
-            @click="markOneRead(notification)"
+            @click="handleNotificationClick(notification)"
           >
             <div class="d-flex">
               <div
@@ -505,22 +654,24 @@ const handleLogout = async (event) => {
               ></div>
               <div class="flex-grow-1">
                 <h6 class="mb-2 fw-bold">
-                  {{ notification.title || notification.subject || 'Notification' }}
+                  {{ getNotificationTitle(notification) }}
                 </h6>
-                <p class="mb-2 text-secondary" style="white-space: normal; word-wrap: break-word;">
-                  {{ notification.message || notification.body || '' }}
+                <p class="mb-2 text-secondary" style="white-space: pre-line; word-wrap: break-word;">
+                  {{ getNotificationMessage(notification) }}
                 </p>
                 <p class="mb-0 text-muted small">
                   <i class="fa fa-clock me-1"></i>
-                  {{ formatTime(notification.created_at) }}
+                  {{ formatTime(getNotificationCreatedAt(notification)) }}
                 </p>
               </div>
             </div>
           </div>
         </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -707,6 +858,146 @@ const handleLogout = async (event) => {
   
   .admin-nav-menu .nav-link i {
     font-size: 0.9rem;
+  }
+}
+
+/* Notifications modal - Matching Add Deposit modal style */
+.notification-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.notification-panel {
+  background: white;
+  border-radius: 16px;
+  max-width: 620px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+  padding: 32px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #f5f5f5;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.modal-close:hover {
+  background-color: #e5e5e5;
+  transform: rotate(90deg);
+}
+
+.modal-close svg {
+  width: 20px;
+  height: 20px;
+  color: #333;
+}
+
+.modal-header-content {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  margin-bottom: 0;
+}
+
+.modal-body-content {
+  padding: 0;
+  max-height: calc(90vh - 200px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.notification-actions {
+  margin-top: 12px;
+}
+
+/* Modal Animations */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-enter-active .notification-panel,
+.modal-leave-active .notification-panel {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-from .notification-panel,
+.modal-leave-to .notification-panel {
+  transform: scale(0.9) translateY(-20px);
+}
+
+@media (max-width: 575.98px) {
+  .notification-overlay {
+    padding: 12px;
+  }
+
+  .notification-panel {
+    max-width: 100%;
+    max-height: calc(100vh - 24px);
+    padding: 24px 20px;
+  }
+
+  .modal-close {
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .modal-close svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .modal-header-content {
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+  }
+
+  .modal-title {
+    font-size: 1.1rem;
+  }
+
+  .modal-body-content {
+    max-height: calc(100vh - 180px);
+  }
+
+  .notification-actions {
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 }
 </style>

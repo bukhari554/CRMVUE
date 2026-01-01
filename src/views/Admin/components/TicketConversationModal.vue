@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue';
 import ArgonButton from '@/components/ArgonButton.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
-import { apiGet, apiPost } from '@/utils/api.js';
+import { apiGet, apiPost, apiPatch } from '@/utils/api.js';
 
 const props = defineProps({
   show: {
@@ -26,6 +26,28 @@ const loadingAttachments = ref(false);
 const replyMessage = ref('');
 const submitting = ref(false);
 const errorMessage = ref('');
+
+// Mark ticket as read
+const markTicketAsRead = async () => {
+  if (!props.ticketId) return;
+
+  try {
+    const response = await apiPatch(`/admin/tickets/${props.ticketId}/read`);
+    const data = await response.json().catch(() => null);
+
+    if (response.ok || data?.success) {
+      // Update ticket is_read status if ticket is already loaded
+      if (ticket.value) {
+        ticket.value.is_read = true;
+      }
+      // Emit event to update ticket list
+      emit('ticket-updated');
+    }
+  } catch (err) {
+    // Silently fail - don't show error to user for read status
+    console.error('Error marking ticket as read:', err);
+  }
+};
 
 // Load ticket details
 const loadTicket = async () => {
@@ -224,6 +246,8 @@ watch(
   (newVal) => {
     if (newVal && props.ticketId) {
       activeTab.value = 'conversation';
+      // Mark ticket as read when modal opens
+      markTicketAsRead();
       // Load ticket first, then load conversation and attachments
       loadTicket().then(() => {
         loadConversation();

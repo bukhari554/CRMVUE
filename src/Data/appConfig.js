@@ -1,8 +1,7 @@
 export const APP_CONFIG = {
-  baseApiUrl: "http://127.0.0.1:8000/api",
-  appName: "Forex CRM",
+  baseApiUrl: "https://api.digiprimefx.com/api",
+  appName: "DigiPrime Fx",
   logo: "/logo.png",
   darkLogo: "/logo-dark.png",
   favicon: "/favicon.ico"
 };
-

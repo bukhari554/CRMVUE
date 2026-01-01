@@ -84,6 +84,21 @@ const formatDate = (dateString) => {
           @click="toggleFavorite"
           :title="isTogglingFavorite ? 'Updating...' : (ticket.is_favorite ? 'Remove from favorites' : 'Add to favorites')"
         ></i>
+        <div class="position-relative" style="display: inline-block;">
+          <i
+            :class="ticket.is_read ? 'fas fa-envelope-open' : 'fas fa-envelope'"
+            :style="{
+              fontSize: '14px',
+              color: ticket.is_read ? '#6c757d' : '#dc3545'
+            }"
+            :title="ticket.is_read ? 'Read' : 'Unread'"
+          ></i>
+          <span
+            v-if="!ticket.is_read"
+            class="position-absolute badge rounded-pill bg-danger"
+            style="top: -2px; right: -2px; width: 6px; height: 6px; padding: 0; font-size: 0; border: 1px solid white;"
+          ></span>
+        </div>
       </div>
     </td>
     <td class="text-sm text-dark" style="padding: 0.75rem;">{{ ticket.category?.name || ticket.category || '—' }}</td>

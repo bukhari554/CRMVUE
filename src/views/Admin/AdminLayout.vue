@@ -1,18 +1,9 @@
 <script setup>
 import { computed } from "vue";
 import { useStore } from "vuex";
-<<<<<<< HEAD
 import AppHeader from "@/views/Admin/components/Header.vue"; // Ye add karein
-=======
-import Sidenav from "@/views/Admin/Sidenav";
-import Configurator from "@/examples/Configurator.vue";
-
->>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
 
 const store = useStore();
-const isNavFixed = computed(() => store.state.isNavFixed);
-const darkMode = computed(() => store.state.darkMode);
-const isAbsolute = computed(() => store.state.isAbsolute);
 const showSidenav = computed(() => store.state.showSidenav);
 const layout = computed(() => store.state.layout);
 
@@ -20,22 +11,11 @@ const showConfig = computed(() => store.state.showConfig);
 const hideConfigButton = computed(() => store.state.hideConfigButton);
 const toggleConfigurator = () => store.commit("toggleConfigurator");
 
-const navClasses = computed(() => {
-  return {
-    "position-sticky bg-white left-auto top-2 z-index-sticky":
-      isNavFixed.value && !darkMode.value,
-    "position-sticky bg-default left-auto top-2 z-index-sticky":
-      isNavFixed.value && darkMode.value,
-    "position-absolute px-4 mx-0 w-100 z-index-2": isAbsolute.value,
-    "px-0 mx-4": !isAbsolute.value,
-  };
-});
 </script>
-<<<<<<< HEAD
 
-=======
->>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
 <template>
+  <div class="admin-layout">
+
   <div
     v-show="layout === 'landing'"
     class="landing-bg h-100 bg-gradient-primary position-fixed w-100"
@@ -46,27 +26,22 @@ const navClasses = computed(() => {
   <main
     class="main-content position-relative max-height-vh-100 h-100 border-radius-lg"
   >
-<<<<<<< HEAD
-    <!-- Header yahan add karein (Navbar se pehle) -->
     <AppHeader />
-    
-    <AdminNavbar :class="[navClasses]" v-if="showNavbar" />
 
     <router-view />
 
-=======
-    <!-- nav -->
-
-    <navbar :class="[navClasses]" v-if="showNavbar" />
-
-    <router-view />
-
-    
-
->>>>>>> c8bfd604f7b3004e47339c65e5f4ada82f16cd70
     <configurator
       :toggle="toggleConfigurator"
       :class="[showConfig ? 'show' : '', hideConfigButton ? 'd-none' : '']"
     />
   </main>
+</div>
 </template>
+<style scoped>
+.admin-layout {
+background-color:#e5e5e5 ;
+}
+.main {
+  background-color: #e5e5e5;
+}
+</style>  

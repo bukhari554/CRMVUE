@@ -1,0 +1,88 @@
+// Global background color - cards aur navbar ke ilawa
+body {
+  background-color: #e5e5e5 !important;
+}
+
+// Main content area
+.main-content {
+  background-color: #e5e5e5 !important;
+}
+
+// Container fluid
+.container-fluid {
+  background-color: #e5e5e5 !important;
+}
+
+// Cards aur navbar white rahenge
+.card {
+  background-color: #ffffff !important;
+}
+
+.navbar {
+  background-color: #ffffff !important;
+}
+
+// Footer bhi same background
+.footer {
+  background-color: #e5e5e5 !important;
+}
+
+// Custom Toast Notification Styles
+.custom-toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  background: white;
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  z-index: 9999;
+  opacity: 0;
+  transform: translateX(400px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 280px;
+  max-width: 420px;
+}
+
+.custom-toast.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.custom-toast.success {
+  border-left: 4px solid #28a745;
+  color: #155724;
+  background: linear-gradient(135deg, #f0fff4 0%, #e6ffe6 100%);
+}
+
+.custom-toast.success i {
+  color: #28a745;
+  font-size: 1.5rem;
+}
+
+.custom-toast.error {
+  border-left: 4px solid #dc3545;
+  color: #721c24;
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+}
+
+.custom-toast.error i {
+  color: #dc3545;
+  font-size: 1.5rem;
+}
+
+.custom-toast.info {
+  border-left: 4px solid #17a2b8;
+  color: #0c5460;
+  background: linear-gradient(135deg, #f0fbff 0%, #e0f7ff 100%);
+}
+
+.custom-toast.info i {
+  color: #17a2b8;
+  font-size: 1.5rem;
+}

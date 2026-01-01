@@ -1,7 +1,8 @@
 <script setup>
 import { ref, watch } from 'vue';
 import ArgonButton from '@/components/ArgonButton.vue';
-import { apiGet, apiPost } from '@/utils/api.js';
+import LoadingSpinner from '@/components/LoadingSpinner.vue';
+import { apiGet, apiPost, apiPatch } from '@/utils/api.js';
 
 const props = defineProps({
   show: {
@@ -21,6 +22,7 @@ const ticket = ref(null);
 const messages = ref([]);
 const attachments = ref([]);
 const loading = ref(false);
+const loadingAttachments = ref(false);
 const replyMessage = ref('');
 const replyFiles = ref([]);
 const attachmentFiles = ref([]); // Files for direct upload in attachments tab
@@ -28,6 +30,28 @@ const submitting = ref(false);
 const uploading = ref(false);
 const uploadingAttachment = ref(false);
 const errorMessage = ref('');
+
+// Mark ticket as read
+const markTicketAsRead = async () => {
+  if (!props.ticketId) return;
+
+  try {
+    const response = await apiPatch(`/client/tickets/${props.ticketId}/read`);
+    const data = await response.json().catch(() => null);
+
+    if (response.ok || data?.success) {
+      // Update ticket is_read status if ticket is already loaded
+      if (ticket.value) {
+        ticket.value.is_read = true;
+      }
+      // Emit event to update ticket list
+      emit('ticket-updated');
+    }
+  } catch (err) {
+    // Silently fail - don't show error to user for read status
+    console.error('Error marking ticket as read:', err);
+  }
+};
 
 // Load ticket details
 const loadTicket = async () => {
@@ -57,8 +81,6 @@ const loadTicket = async () => {
 const loadConversation = async () => {
   if (!props.ticketId) return;
 
-  loading.value = true;
-
   try {
     const response = await apiGet(`/client/tickets/${props.ticketId}/conversation`);
     const data = await response.json().catch(() => null);
@@ -72,12 +94,12 @@ const loadConversation = async () => {
       }
     } else if (data?.data?.messages) {
       messages.value = data.data.messages;
+    } else if (Array.isArray(data?.data)) {
+      messages.value = data.data;
     }
   } catch (err) {
     console.error('Error loading conversation:', err);
     errorMessage.value = 'Failed to load conversation history.';
-  } finally {
-    loading.value = false;
   }
 };
 
@@ -85,7 +107,7 @@ const loadConversation = async () => {
 const loadAttachments = async () => {
   if (!props.ticketId) return;
 
-  loading.value = true;
+  loadingAttachments.value = true;
 
   try {
     const response = await apiGet(`/client/tickets/${props.ticketId}/attachments`);
@@ -97,16 +119,21 @@ const loadAttachments = async () => {
       } else if (Array.isArray(data.data)) {
         attachments.value = data.data;
       }
+    } else if (Array.isArray(data?.data?.attachments)) {
+      attachments.value = data.data.attachments;
     } else if (Array.isArray(data?.data)) {
       attachments.value = data.data;
     } else if (Array.isArray(data?.attachments)) {
       attachments.value = data.attachments;
+    } else {
+      attachments.value = [];
     }
   } catch (err) {
     console.error('Error loading attachments:', err);
     errorMessage.value = 'Failed to load attachments.';
+    attachments.value = [];
   } finally {
-    loading.value = false;
+    loadingAttachments.value = false;
   }
 };
 
@@ -269,9 +296,13 @@ watch(
   (newVal) => {
     if (newVal && props.ticketId) {
       activeTab.value = 'conversation';
-      loadTicket();
-      loadConversation();
-      loadAttachments();
+      // Mark ticket as read when modal opens
+      markTicketAsRead();
+      // Load ticket first, then load conversation and attachments
+      loadTicket().then(() => {
+        loadConversation();
+        loadAttachments();
+      });
     } else {
       ticket.value = null;
       messages.value = [];
@@ -280,6 +311,8 @@ watch(
       replyFiles.value = [];
       attachmentFiles.value = [];
       errorMessage.value = '';
+      loading.value = false;
+      loadingAttachments.value = false;
     }
   },
   { immediate: true }
@@ -295,12 +328,32 @@ const getFileIcon = (fileName) => {
   return 'fa-file';
 };
 
-// Download attachment
-const downloadAttachment = (attachment) => {
-  const url = attachment.file_url || attachment.url || attachment.path;
+// Check if file is an image
+const isImageFile = (fileName) => {
+  if (!fileName) return false;
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext);
+};
+
+// Get attachment URL
+const getAttachmentUrl = (attachment) => {
+  return attachment.file_url || attachment.url || attachment.path || '';
+};
+
+// View image in new tab
+const viewImage = (attachment) => {
+  const url = getAttachmentUrl(attachment);
   if (url) {
     window.open(url, '_blank');
   }
+};
+
+// Format file size
+const formatFileSize = (bytes) => {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
 };
 
 const closeModal = () => {
@@ -311,20 +364,32 @@ const closeModal = () => {
 <template>
   <div
     v-if="props.show"
-    class="modal-overlay"
+    class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+    style="background-color: rgba(0, 0, 0, 0.5); z-index: 1050;"
     @click.self="closeModal"
   >
-    <div class="bg-white rounded-3 shadow-lg modal-container d-flex flex-column">
-      <!-- Header - Fixed -->
-      <div class="px-3 py-2 border-bottom flex-shrink-0">
+    <div class="bg-white rounded-3 shadow-lg" style="width: 90%; max-width: 1000px; max-height: 90vh; overflow-y: auto;">
+      <!-- Header -->
+      <div class="p-4 border-bottom">
         <div class="d-flex justify-content-between align-items-center">
-          <div class="d-flex align-items-center gap-2" style="font-size: 0.9rem;">
-            <span v-if="ticket" class="text-muted">
-              <span class="fw-bold">Subject:</span> {{ ticket.subject }}
+          <h5 class="mb-0 fw-bold d-flex align-items-center gap-2">
+            <i class="fas fa-ticket-alt"></i>
+            Subject: {{ ticket?.subject || '—' }} - Ticket #{{ props.ticketId || '' }}
+            <span
+              v-if="ticket"
+              class="badge ms-2"
+              :style="{
+                backgroundColor: ticket.status === 'open' ? '#d4edda' : ticket.status === 'closed' ? '#e2e3e5' : '#fff3cd',
+                color: ticket.status === 'open' ? '#28a745' : ticket.status === 'closed' ? '#6c757d' : '#ffc107',
+                padding: '4px 12px',
+                borderRadius: '20px',
+                fontWeight: '600',
+                fontSize: '0.75rem',
+              }"
+            >
+              {{ (ticket.status || 'OPEN').toUpperCase() }}
             </span>
-            <span class="text-muted">-</span>
-            <span class="fw-bold">Edit Ticket {{ props.ticketId || '' }}</span>
-          </div>
+          </h5>
           <button
             type="button"
             class="btn btn-sm btn-link text-dark p-0"
@@ -335,161 +400,202 @@ const closeModal = () => {
         </div>
       </div>
 
-      <!-- Tabs - Fixed -->
-      <div class="px-4 flex-shrink-0">
-        <ul class="nav nav-tabs border-0 mb-3">
-          <li class="nav-item">
-            <button
-              class="nav-link border-0"
-              :class="{
-                'text-dark fw-bold active': activeTab === 'message',
-                'text-muted': activeTab !== 'message',
-              }"
-              @click="activeTab = 'message'"
-            >
-              <i class="fas fa-comment me-1"></i>
-              Message
-            </button>
-          </li>
-          <li class="nav-item">
-            <button
-              class="nav-link border-0 position-relative"
-              :class="{
-                'text-dark fw-bold active': activeTab === 'conversation',
-                'text-muted': activeTab !== 'conversation',
-              }"
-              @click="activeTab = 'conversation'"
-            >
-              <i class="fas fa-redo me-1"></i>
-              Conversation History
-              <div
-                v-if="activeTab === 'conversation'"
-                class="position-absolute start-0"
-                style="bottom: 0; width: 100%; height: 2px; background-color: #344767;"
-              ></div>
-            </button>
-          </li>
-          <li class="nav-item">
-            <button
-              class="nav-link border-0"
-              :class="{
-                'text-dark fw-bold active': activeTab === 'attachments',
-                'text-muted': activeTab !== 'attachments',
-              }"
-              @click="activeTab = 'attachments'"
-            >
-              <i class="fas fa-paperclip me-1"></i>
-              Attachments
-            </button>
-          </li>
-        </ul>
-      </div>
+      <!-- Content -->
+      <div class="p-4">
+        <!-- Loading State -->
+        <LoadingSpinner v-if="loading" message="Loading..." />
 
-      <!-- Content - Scrollable -->
-      <div class="px-4 pb-4 flex-grow-1 overflow-auto modal-content-area">
-        <div v-if="loading && !ticket" class="text-center text-muted py-5">
-          <i class="fas fa-spinner fa-spin me-2"></i>
-          Loading...
-        </div>
-
+        <!-- Error Message -->
         <div v-else-if="errorMessage" class="alert alert-danger mb-3">
+          <i class="fas fa-exclamation-circle me-2"></i>
           {{ errorMessage }}
         </div>
 
-        <!-- Conversation History Tab -->
-        <div v-if="activeTab === 'conversation' && ticket" class="d-flex flex-column conversation-wrapper">
-          <!-- Messages - Scrollable Area -->
-          <div class="conversation-messages flex-grow-1 overflow-auto mb-3">
-            <div v-if="messages.length === 0" class="text-center text-muted py-4">
-              No messages yet.
-            </div>
-            <div v-else class="d-flex flex-column gap-3 p-2">
-              <div
-                v-for="msg in messages"
-                :key="msg.id"
-                class="d-flex align-items-end gap-2"
-                :class="{ 'justify-content-end': msg.sender_type === 'user' }"
+        <!-- Ticket Content -->
+        <div v-else-if="ticket">
+          <!-- Tabs -->
+          <ul class="nav nav-tabs border-0 mb-4">
+            <li class="nav-item">
+              <button
+                class="nav-link border-0"
+                :class="{
+                  'text-dark fw-bold active': activeTab === 'message',
+                  'text-muted': activeTab !== 'message',
+                }"
+                @click="activeTab = 'message'"
               >
+                <i class="fas fa-comment me-1"></i>
+                Message
+              </button>
+            </li>
+            <li class="nav-item">
+              <button
+                class="nav-link border-0 position-relative"
+                :class="{
+                  'text-dark fw-bold active': activeTab === 'conversation',
+                  'text-muted': activeTab !== 'conversation',
+                }"
+                @click="activeTab = 'conversation'"
+              >
+                <i class="fas fa-comments me-1"></i>
+                Conversation History
                 <div
-                  class="rounded p-3 text-white"
-                  :style="{
-                    backgroundColor: msg.sender_type === 'user' ? '#1e3a8a' : '#6c757d',
-                    maxWidth: '70%',
-                  }"
+                  v-if="activeTab === 'conversation'"
+                  class="position-absolute start-0"
+                  style="bottom: 0; width: 100%; height: 2px; background-color: #344767;"
+                ></div>
+              </button>
+            </li>
+            <li class="nav-item">
+              <button
+                class="nav-link border-0"
+                :class="{
+                  'text-dark fw-bold active': activeTab === 'attachments',
+                  'text-muted': activeTab !== 'attachments',
+                }"
+                @click="activeTab = 'attachments'"
+              >
+                <i class="fas fa-paperclip me-1"></i>
+                Attachments
+                <span v-if="attachments.length > 0" class="badge bg-danger ms-1" style="font-size: 0.65rem;">
+                  {{ attachments.length }}
+                </span>
+              </button>
+            </li>
+          </ul>
+
+          <!-- Conversation History Tab -->
+          <div v-if="activeTab === 'conversation'">
+            <div class="card border mb-4">
+              <div class="card-body">
+                <h6 class="fw-bold mb-3">
+                  <i class="fas fa-comments me-2"></i>
+                  Conversation History
+                </h6>
+                <div 
+                  class="conversation-messages-container"
+                  style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding: 1rem; background-color: #f8f9fa; border-radius: 0.5rem;"
                 >
-                  <div class="mb-2">{{ msg.message }}</div>
-                  <div class="text-white-50 small" style="font-size: 0.75rem;">
-                    <span v-if="msg.user?.id">{{ msg.user.id }}</span>
-                    <span v-if="msg.user?.name"> | {{ msg.user.name }}</span>
-                    <span v-if="msg.created_at"> | {{ formatDateTime(msg.created_at) }}</span>
+                  <div v-if="messages.length === 0" class="text-center text-muted py-4">
+                    No messages yet.
+                  </div>
+                  <div v-else class="d-flex flex-column gap-3">
+                    <div
+                      v-for="msg in messages"
+                      :key="msg.id"
+                      class="d-flex align-items-end gap-2"
+                      :class="{ 'justify-content-end': msg.sender_type === 'admin' || msg.sender_type === 'Admin' }"
+                    >
+                      <!-- User messages on left -->
+                      <div
+                        v-if="msg.sender_type === 'user' || msg.sender_type === 'User'"
+                        class="d-flex align-items-end gap-2"
+                      >
+                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; flex-shrink: 0;">
+                          <i class="fas fa-user text-white small"></i>
+                        </div>
+                        <div
+                          class="rounded p-3 text-white"
+                          style="background-color: #1e3a8a; max-width: 70%;"
+                        >
+                          <div class="mb-2">{{ msg.message }}</div>
+                          <div class="text-white-50 small" style="font-size: 0.75rem;">
+                            <span v-if="msg.user?.name">{{ msg.user.name }}</span>
+                            <span v-if="msg.created_at"> | {{ formatDateTime(msg.created_at) }}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Admin messages on right -->
+                      <div
+                        v-else
+                        class="d-flex align-items-end gap-2 flex-row-reverse"
+                      >
+                        <div class="rounded-circle bg-success d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; flex-shrink: 0;">
+                          <i class="fas fa-user-shield text-white small"></i>
+                        </div>
+                        <div
+                          class="rounded p-3 text-white"
+                          style="background-color: #28a745; max-width: 70%;"
+                        >
+                          <div class="mb-2">{{ msg.message }}</div>
+                          <div class="text-white-50 small" style="font-size: 0.75rem;">
+                            <span v-if="msg.admin?.name">{{ msg.admin.name }}</span>
+                            <span v-if="msg.created_at"> | {{ formatDateTime(msg.created_at) }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                  <i class="fas fa-user text-white small"></i>
-                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Reply Section - Fixed at Bottom -->
-          <div class="border-top pt-3 reply-section flex-shrink-0 bg-white">
-            <label class="form-label fw-bold mb-2">Reply</label>
-            <textarea
-              v-model="replyMessage"
-              class="form-control mb-2"
-              rows="4"
-              placeholder="Type your reply..."
-              :disabled="submitting"
-            ></textarea>
-            
-            <!-- File Upload -->
-            <div class="mb-2">
-              <label class="form-label text-sm mb-1">Attachments (Optional)</label>
-              <input
-                type="file"
-                class="form-control form-control-sm"
-                multiple
-                @change="handleFileSelect"
-                :disabled="submitting"
-              />
-              <div v-if="replyFiles.length > 0" class="mt-2">
-                <div
-                  v-for="(file, index) in replyFiles"
-                  :key="index"
-                  class="d-flex align-items-center justify-content-between bg-light p-2 rounded mb-1"
-                >
-                  <span class="text-sm">
-                    <i :class="`fas ${getFileIcon(file.name)} me-2`"></i>
-                    {{ file.name }}
-                  </span>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-link text-danger p-0"
-                    @click="removeFile(index)"
+            <!-- Reply Section -->
+            <div class="card border">
+              <div class="card-body">
+                <h6 class="fw-bold mb-3">
+                  <i class="fas fa-reply me-2"></i>
+                  Reply
+                </h6>
+                <textarea
+                  v-model="replyMessage"
+                  class="form-control mb-3"
+                  rows="4"
+                  placeholder="Type your reply..."
+                  :disabled="submitting"
+                ></textarea>
+                
+                <!-- File Upload -->
+                <div class="mb-2">
+                  <label class="form-label text-sm mb-1">Attachments (Optional)</label>
+                  <input
+                    type="file"
+                    class="form-control form-control-sm"
+                    multiple
+                    @change="handleFileSelect"
                     :disabled="submitting"
-                  >
-                    <i class="fas fa-times"></i>
-                  </button>
+                  />
+                  <div v-if="replyFiles.length > 0" class="mt-2">
+                    <div
+                      v-for="(file, index) in replyFiles"
+                      :key="index"
+                      class="d-flex align-items-center justify-content-between bg-light p-2 rounded mb-1"
+                    >
+                      <span class="text-sm">
+                        <i :class="`fas ${getFileIcon(file.name)} me-2`"></i>
+                        {{ file.name }}
+                      </span>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-link text-danger p-0"
+                        @click="removeFile(index)"
+                        :disabled="submitting"
+                      >
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
         <!-- Message Tab -->
-        <div v-if="activeTab === 'message' && ticket">
-          <div class="p-3 border rounded">
-            <p class="mb-0">{{ ticket.message || 'No message available.' }}</p>
+        <div v-if="activeTab === 'message'">
+          <div class="card border mb-4">
+            <div class="card-body">
+              <h6 class="fw-bold mb-3">
+                <i class="fas fa-envelope me-2"></i>
+                Original Message
+              </h6>
+              <p class="mb-0">{{ ticket.message || 'No message available.' }}</p>
+            </div>
           </div>
         </div>
 
         <!-- Attachments Tab -->
         <div v-if="activeTab === 'attachments'">
-          <!-- Error Message -->
-          <div v-if="errorMessage" class="alert alert-danger mb-3">
-            {{ errorMessage }}
-          </div>
-
           <!-- Upload Section -->
           <div class="card border mb-4">
             <div class="card-body">
@@ -549,10 +655,7 @@ const closeModal = () => {
               <i class="fas fa-paperclip me-2"></i>
               Attachments ({{ attachments.length }})
             </h6>
-            <div v-if="loading" class="text-center text-muted py-4">
-              <i class="fas fa-spinner fa-spin me-2"></i>
-              Loading attachments...
-            </div>
+            <LoadingSpinner v-if="loadingAttachments" message="Loading attachments..." size="md" />
             <div v-else-if="attachments.length === 0" class="text-center text-muted py-4">
               <i class="fas fa-paperclip fa-2x mb-3 opacity-50"></i>
               <p class="mb-0">No attachments available.</p>
@@ -565,30 +668,50 @@ const closeModal = () => {
               >
                 <div class="card border">
                   <div class="card-body p-3">
-                    <div class="d-flex align-items-center mb-2">
-                      <i :class="`fas ${getFileIcon(attachment.file_name || attachment.name || 'file')} fa-2x text-primary me-2`"></i>
-                      <div class="flex-grow-1">
-                        <div class="text-sm fw-bold text-truncate" style="max-width: 150px;">
-                          {{ attachment.file_name || attachment.name || `Attachment ${index + 1}` }}
-                        </div>
-                        <div class="text-xs text-muted">
-                          {{ attachment.size ? `${(attachment.size / 1024).toFixed(2)} KB` : '' }}
-                        </div>
-                        <div v-if="attachment.creator" class="text-xs text-muted">
-                          By: {{ attachment.creator.name }}
-                        </div>
+                    <!-- Image Preview -->
+                    <div v-if="isImageFile(attachment.file_name || attachment.name)" class="mb-3">
+                      <img
+                        :src="getAttachmentUrl(attachment)"
+                        :alt="attachment.file_name || attachment.name || `Attachment ${index + 1}`"
+                        class="img-fluid rounded"
+                        style="max-height: 200px; width: 100%; object-fit: cover; cursor: pointer;"
+                        @click="viewImage(attachment)"
+                        @error="(e) => { e.target.style.display = 'none'; }"
+                      />
+                    </div>
+                    
+                    <!-- File Icon for non-images -->
+                    <div v-else class="text-center mb-3">
+                      <i :class="`fas ${getFileIcon(attachment.file_name || attachment.name || 'file')} fa-3x text-primary`"></i>
+                    </div>
+
+                    <div class="mb-2">
+                      <div class="text-sm fw-bold text-truncate" style="max-width: 100%;">
+                        {{ attachment.file_name || attachment.name || `Attachment ${index + 1}` }}
+                      </div>
+                      <div class="text-xs text-muted">
+                        {{ formatFileSize(attachment.size || attachment.file_size) }}
+                      </div>
+                      <div v-if="attachment.creator" class="text-xs text-muted">
+                        By: {{ attachment.creator.name }}
+                      </div>
+                      <div v-if="attachment.creation_date" class="text-xs text-muted">
+                        {{ formatDateTime(attachment.creation_date) }}
                       </div>
                     </div>
-                    <ArgonButton
-                      color="success"
-                      variant="gradient"
-                      size="sm"
-                      fullWidth
-                      @click="downloadAttachment(attachment)"
-                    >
-                      <i class="fas fa-download me-1"></i>
-                      Download
-                    </ArgonButton>
+                    
+                    <div class="d-flex gap-2">
+                      <ArgonButton
+                        color="info"
+                        variant="outline"
+                        size="sm"
+                        @click="viewImage(attachment)"
+                        style="width: 100%;"
+                      >
+                        <i class="fas fa-eye me-1"></i>
+                        View
+                      </ArgonButton>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -597,8 +720,30 @@ const closeModal = () => {
         </div>
       </div>
 
+      </div>
+
       <!-- Footer -->
-      <div class="p-4 border-top d-flex justify-content-end">
+      <div v-if="!loading && ticket" class="p-4 border-top d-flex justify-content-end gap-2">
+        <ArgonButton
+          color="dark"
+          variant="gradient"
+          @click="closeModal"
+          :disabled="submitting"
+        >
+          Close
+        </ArgonButton>
+        <ArgonButton
+          v-if="activeTab === 'conversation'"
+          color="success"
+          variant="gradient"
+          :disabled="submitting || !replyMessage.trim()"
+          @click="handleReply"
+        >
+          <i class="fas fa-paper-plane me-1"></i>
+          {{ submitting ? 'Sending...' : 'Send Reply' }}
+        </ArgonButton>
+      </div>
+      <div v-else class="p-4 border-top d-flex justify-content-end">
         <ArgonButton
           color="dark"
           variant="gradient"
@@ -606,89 +751,49 @@ const closeModal = () => {
         >
           Close
         </ArgonButton>
-        <ArgonButton
-          v-if="activeTab === 'conversation'"
-          color="warning"
-          variant="gradient"
-          class="ms-2"
-          :disabled="submitting || (!replyMessage.trim() && replyFiles.length === 0)"
-          @click="handleReply"
-        >
-          {{ submitting ? (uploading ? 'Uploading...' : 'Sending...') : 'Send Reply' }}
-        </ArgonButton>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 1050;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding: 10px;
+.nav-tabs .nav-link.active {
+  border-bottom: 2px solid #344767;
 }
 
-.modal-container {
-  width: 90%;
-  max-width: 900px;
-  height: calc(100vh - 20px);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  margin: 0;
+.text-xs {
+  font-size: 0.75rem;
 }
 
-.modal-content-area {
-  min-height: 0;
-  flex: 1 1 auto;
-  overflow-y: auto;
+.text-sm {
+  font-size: 0.875rem;
 }
 
-.conversation-wrapper {
-  min-height: 0;
-  height: 450px;
-  display: flex;
-  flex-direction: column;
+.card {
+  border-radius: 0.5rem;
 }
 
-.conversation-messages {
-  min-height: 0;
-  flex: 1 1 auto;
-  overflow-y: auto;
-  overflow-x: hidden;
+.conversation-messages-container {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f8f9fa;
 }
 
-.reply-section {
-  background-color: white;
-  padding-top: 1rem;
-  flex-shrink: 0;
+.conversation-messages-container::-webkit-scrollbar {
+  width: 8px;
 }
 
-@media (max-width: 992px) {
-  .modal-container {
-    width: 95%;
-    height: calc(100vh - 20px);
-  }
+.conversation-messages-container::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 4px;
 }
 
-@media (max-width: 768px) {
-  .modal-container {
-    width: 100%;
-    height: calc(100vh - 20px);
-    border-radius: 0;
-  }
-  
-  .conversation-wrapper {
-    height: 350px;
-  }
+.conversation-messages-container::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+.conversation-messages-container::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
 }
 </style>
 
